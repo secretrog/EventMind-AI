@@ -1,10 +1,31 @@
 import type { Event } from '../types';
 
 // ─── In-memory store (demo mode) ─────────────────────────────────────────────
-let memoryEvents: Event[] = [];
+const STORAGE_KEY = 'eventmind_events';
+
+function loadEvents(): Event[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return parsed.map((e: any) => ({
+      ...e,
+      createdAt: new Date(e.createdAt),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function saveEvents(events: Event[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+}
+
+let memoryEvents: Event[] = loadEvents();
 let eventListeners: Array<(events: Event[]) => void> = [];
 
 function notifyEventListeners() {
+  saveEvents(memoryEvents);
   eventListeners.forEach(cb => cb([...memoryEvents]));
 }
 

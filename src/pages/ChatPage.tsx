@@ -163,10 +163,6 @@ export default function ChatPage() {
         {messages.map((msg, i) => (
           <div key={msg.id}>
             <ChatBubble message={msg} participantName={participantName} />
-            {/* Quick replies for last AI message only */}
-            {msg.role === 'ai' && msg.quickReplies && i === messages.length - 1 && !isTyping && (
-              <QuickReplies replies={msg.quickReplies} onSelect={handleQuickReply} />
-            )}
           </div>
         ))}
 
@@ -177,30 +173,11 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Show suggestion chips when ready and no typing */}
-        {phase === 'chat' && !isTyping && messages.length > 2 && !lastAIMessage?.quickReplies && (
-          <div className="flex flex-wrap gap-2 ml-11 mt-2">
-            <button onClick={() => handleQuickReply('I want to report a problem')} className="chip text-xs">🚨 Report Issue</button>
-            <button onClick={() => handleQuickReply('I have a suggestion')} className="chip text-xs">💡 Suggest</button>
-            <button onClick={() => handleQuickReply('Everything is great!')} className="chip text-xs">❤️ Appreciate</button>
-          </div>
-        )}
-
         <div ref={bottomRef} />
       </main>
 
       {/* Input area */}
       <footer className="px-4 pb-6 pt-3 glass border-t border-gray-100 dark:border-gray-800">
-        {/* Suggestions for first interaction */}
-        {phase === 'name' && messages.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {['Ammu', 'Rahul', 'Priya', 'Karthik'].map(name => (
-              <button key={name} onClick={() => sendMessage(name)} className="chip text-xs">
-                {name}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="relative flex items-end gap-3 max-w-3xl mx-auto">
           <div className="relative flex-1">

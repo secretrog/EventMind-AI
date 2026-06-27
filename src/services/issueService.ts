@@ -7,16 +7,42 @@ import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { Issue, IssueCategory, Priority, Participant, Alert, DashboardStats } from '../types';
 
 // ─── In-memory store for demo mode ───────────────────────────────────────────
-let memoryIssues: Issue[] = [];
-let memoryParticipants: Participant[] = [];
-let memoryAlerts: Alert[] = [];
+function loadData<T>(key: string, parseDates: (data: any) => any = d => d): T[] {
+  try {
+    const data = localStorage.getItem(key);
+    if (!data) return [];
+    return JSON.parse(data).map(parseDates);
+  } catch {
+    return [];
+  }
+}
+function saveData(key: string, data: any) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+let memoryIssues: Issue[] = loadData('eventmind_issues', i => ({
+  ...i,
+  reportedAt: new Date(i.reportedAt),
+  updatedAt: new Date(i.updatedAt),
+  resolvedAt: i.resolvedAt ? new Date(i.resolvedAt) : undefined,
+}));
+let memoryParticipants: Participant[] = loadData('eventmind_participants', p => ({
+  ...p,
+  joinedAt: new Date(p.joinedAt),
+}));
+let memoryAlerts: Alert[] = loadData('eventmind_alerts', a => ({
+  ...a,
+  createdAt: new Date(a.createdAt),
+}));
 let issueListeners: Array<(issues: Issue[]) => void> = [];
 let alertListeners: Array<(alerts: Alert[]) => void> = [];
 
 function notifyIssueListeners() {
+  saveData('eventmind_issues', memoryIssues);
   issueListeners.forEach(cb => cb([...memoryIssues]));
 }
 function notifyAlertListeners() {
+  saveData('eventmind_alerts', memoryAlerts);
   alertListeners.forEach(cb => cb([...memoryAlerts]));
 }
 
@@ -273,6 +299,7 @@ export function registerParticipant(sessionId: string, name: string) {
   };
   if (!memoryParticipants.find(p => p.sessionId === sessionId)) {
     memoryParticipants.push(participant);
+    saveData('eventmind_participants', memoryParticipants);
   }
 }
 

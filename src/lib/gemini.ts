@@ -71,7 +71,6 @@ const MOCK_RESPONSES: Record<string, { response: string; quickReplies?: string[]
   },
   wifi: {
     response: "Sorry to hear that! Wi-Fi issues are frustrating. Where exactly are you facing this?",
-    quickReplies: ['Hall A', 'Hall B', 'Hall C', 'Registration Area', 'Cafeteria'],
   },
   food: {
     response: "Got it. What's the issue with the food — is it availability, quality, or something else?",
