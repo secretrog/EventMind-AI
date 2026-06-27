@@ -1,0 +1,399 @@
+import {
+  collection, doc, addDoc, updateDoc, getDocs,
+  query, where, orderBy, onSnapshot,
+  serverTimestamp, increment
+} from 'firebase/firestore';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import type { Issue, IssueCategory, Priority, Participant, Alert, DashboardStats } from '../types';
+
+// ─── In-memory store for demo mode ───────────────────────────────────────────
+let memoryIssues: Issue[] = [];
+let memoryParticipants: Participant[] = [];
+let memoryAlerts: Alert[] = [];
+let issueListeners: Array<(issues: Issue[]) => void> = [];
+let alertListeners: Array<(alerts: Alert[]) => void> = [];
+
+function notifyIssueListeners() {
+  issueListeners.forEach(cb => cb([...memoryIssues]));
+}
+function notifyAlertListeners() {
+  alertListeners.forEach(cb => cb([...memoryAlerts]));
+}
+
+// ─── Duplicate detection ──────────────────────────────────────────────────────
+function isSimilarIssue(existing: Issue, newCategory: IssueCategory, newLocation: string, eventId?: string): boolean {
+  if (existing.eventId !== eventId) return false;
+  const locationMatch = existing.location.toLowerCase() === newLocation.toLowerCase()
+    || newLocation === 'Unknown' || existing.location === 'Unknown';
+  return existing.category === newCategory && locationMatch && existing.status !== 'resolved';
+}
+
+// ─── Create or merge issue ────────────────────────────────────────────────────
+export async function createOrMergeIssue(
+  issueData: Partial<Issue>,
+  participantSessionId: string,
+  participantName: string,
+  eventId?: string
+): Promise<Issue> {
+  const category = issueData.category || 'other';
+  const location = issueData.location || 'Unknown';
+
+  if (isFirebaseConfigured() && db) {
+    // Firebase path
+    const issuesRef = collection(db, 'issues');
+    const q = query(issuesRef,
+      where('category', '==', category),
+      where('status', 'in', ['open', 'in_progress'])
+    );
+    const snapshot = await getDocs(q);
+    const existing = snapshot.docs.find(d => {
+      const data = d.data() as Issue;
+      return isSimilarIssue(data, category, location, eventId);
+    });
+
+    if (existing) {
+      const existingData = existing.data() as Issue;
+      if (!existingData.participantSessionIds?.includes(participantSessionId)) {
+        await updateDoc(existing.ref, {
+          affectedParticipants: increment(1),
+          participantSessionIds: [...(existingData.participantSessionIds || []), participantSessionId],
+          participantNames: [...(existingData.participantNames || []), participantName],
+          updatedAt: serverTimestamp(),
+          priority: escalatePriority(existingData.priority as Priority, existingData.affectedParticipants + 1),
+        });
+      }
+      return { ...existingData, id: existing.id };
+    }
+
+    const newIssue: Omit<Issue, 'id'> = {
+      eventId,
+      title: issueData.title || 'General Issue',
+      description: issueData.description || '',
+      category,
+      location,
+      priority: issueData.priority || 'medium',
+      status: 'open',
+      sentiment: issueData.sentiment || 'negative',
+      affectedParticipants: 1,
+      participantSessionIds: [participantSessionId],
+      participantNames: [participantName],
+      reportedAt: new Date(),
+      updatedAt: new Date(),
+      keywords: issueData.keywords || [],
+      recommendedAction: issueData.recommendedAction || '',
+      rootCause: issueData.rootCause || '',
+      followupSent: false,
+    };
+
+    const docRef = await addDoc(issuesRef, {
+      ...newIssue,
+      reportedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return { ...newIssue, id: docRef.id };
+  }
+
+  // Demo mode
+  const existingIdx = memoryIssues.findIndex(i =>
+    isSimilarIssue(i, category, location, eventId)
+  );
+
+  if (existingIdx !== -1) {
+    const existing = memoryIssues[existingIdx];
+    
+    // Prevent same session from incrementing multiple times
+    if (existing.participantSessionIds.includes(participantSessionId)) {
+      return existing;
+    }
+
+    const updated: Issue = {
+      ...existing,
+      affectedParticipants: existing.affectedParticipants + 1,
+      participantSessionIds: [...existing.participantSessionIds, participantSessionId],
+      participantNames: [...existing.participantNames, participantName],
+      updatedAt: new Date(),
+      priority: escalatePriority(existing.priority, existing.affectedParticipants + 1),
+    };
+    memoryIssues[existingIdx] = updated;
+    notifyIssueListeners();
+
+    // Check for critical alert
+    if (updated.affectedParticipants >= 3 && updated.priority === 'critical') {
+      createAlert(updated);
+    }
+
+    return updated;
+  }
+
+  const newIssue: Issue = {
+    id: `issue_${Date.now()}`,
+    eventId,
+    title: issueData.title || 'General Issue',
+    description: issueData.description || '',
+    category,
+    location,
+    priority: issueData.priority || 'medium',
+    status: 'open',
+    sentiment: issueData.sentiment || 'negative',
+    affectedParticipants: 1,
+    participantSessionIds: [participantSessionId],
+    participantNames: [participantName],
+    reportedAt: new Date(),
+    updatedAt: new Date(),
+    keywords: issueData.keywords || [],
+    recommendedAction: issueData.recommendedAction || 'Investigate and address the reported issue',
+    rootCause: issueData.rootCause || 'Participant-reported problem',
+    followupSent: false,
+  };
+
+  memoryIssues.push(newIssue);
+  notifyIssueListeners();
+  return newIssue;
+}
+
+function escalatePriority(current: Priority, count: number): Priority {
+  if (count >= 10) return 'critical';
+  if (count >= 5) return current === 'low' ? 'medium' : current === 'medium' ? 'high' : 'critical';
+  if (count >= 3 && current === 'low') return 'medium';
+  return current;
+}
+
+function createAlert(issue: Issue) {
+  const alert: Alert = {
+    id: `alert_${Date.now()}`,
+    issueId: issue.id,
+    message: `🚨 ${issue.affectedParticipants} participants affected by ${issue.title}`,
+    priority: issue.priority,
+    createdAt: new Date(),
+    acknowledged: false,
+    suggestedAction: issue.recommendedAction || 'Immediate attention required',
+  };
+  memoryAlerts.unshift(alert);
+  notifyAlertListeners();
+}
+
+// ─── Subscribe to issues (real-time) ─────────────────────────────────────────
+export function subscribeToIssues(callback: (issues: Issue[]) => void, eventId?: string): () => void {
+  if (isFirebaseConfigured() && db) {
+    const q = query(collection(db, 'issues'), orderBy('reportedAt', 'desc'));
+    return onSnapshot(q, snapshot => {
+      let issues = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Issue));
+      if (eventId) issues = issues.filter(i => i.eventId === eventId);
+      callback(issues);
+    });
+  }
+
+  // Demo mode
+  const wrappedCallback = (issues: Issue[]) => {
+    callback(eventId ? issues.filter(i => i.eventId === eventId) : issues);
+  };
+  issueListeners.push(wrappedCallback);
+  wrappedCallback([...memoryIssues]);
+  return () => {
+    issueListeners = issueListeners.filter(cb => cb !== wrappedCallback);
+  };
+}
+
+// ─── Subscribe to alerts ──────────────────────────────────────────────────────
+export function subscribeToAlerts(callback: (alerts: Alert[]) => void): () => void {
+  if (isFirebaseConfigured() && db) {
+    const q = query(collection(db, 'alerts'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, snapshot => {
+      const alerts = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Alert));
+      callback(alerts);
+    });
+  }
+
+  alertListeners.push(callback);
+  callback([...memoryAlerts]);
+  return () => {
+    alertListeners = alertListeners.filter(cb => cb !== callback);
+  };
+}
+
+// ─── Update issue status ──────────────────────────────────────────────────────
+export async function updateIssueStatus(
+  issueId: string,
+  status: Issue['status'],
+  assignedTo?: string
+): Promise<void> {
+  if (isFirebaseConfigured() && db) {
+    const ref = doc(db, 'issues', issueId);
+    await updateDoc(ref, {
+      status,
+      assignedTo: assignedTo || null,
+      updatedAt: serverTimestamp(),
+      ...(status === 'resolved' ? { resolvedAt: serverTimestamp() } : {}),
+    });
+    return;
+  }
+
+  const idx = memoryIssues.findIndex(i => i.id === issueId);
+  if (idx !== -1) {
+    memoryIssues[idx] = {
+      ...memoryIssues[idx],
+      status,
+      assignedTo,
+      updatedAt: new Date(),
+      ...(status === 'resolved' ? { resolvedAt: new Date() } : {}),
+    };
+    notifyIssueListeners();
+  }
+}
+
+// ─── Get dashboard stats ──────────────────────────────────────────────────────
+export function getDashboardStats(issues: Issue[]): DashboardStats {
+  const open = issues.filter(i => i.status === 'open' || i.status === 'in_progress');
+  const resolved = issues.filter(i => i.status === 'resolved');
+  const critical = issues.filter(i => i.priority === 'critical' && i.status !== 'resolved');
+  const totalParticipants = new Set(issues.flatMap(i => i.participantSessionIds)).size;
+
+  const satisfactionScore = resolved.length > 0
+    ? Math.min(98, Math.round(60 + (resolved.length / Math.max(issues.length, 1)) * 40))
+    : 72;
+
+  return {
+    liveParticipants: Math.max(totalParticipants, memoryParticipants.length),
+    totalConversations: Math.max(totalParticipants, memoryParticipants.length),
+    openIssues: open.length,
+    resolvedIssues: resolved.length,
+    criticalAlerts: critical.length,
+    satisfactionScore,
+    avgResponseTime: 3.2,
+  };
+}
+
+// ─── Register participant ─────────────────────────────────────────────────────
+export function registerParticipant(sessionId: string, name: string) {
+  const participant: Participant = {
+    sessionId,
+    name,
+    joinedAt: new Date(),
+    issueIds: [],
+  };
+  if (!memoryParticipants.find(p => p.sessionId === sessionId)) {
+    memoryParticipants.push(participant);
+  }
+}
+
+// ─── Seed demo data ───────────────────────────────────────────────────────────
+export function seedDemoData() {
+  if (memoryIssues.length > 0) return;
+
+  const now = new Date();
+  const issues: Issue[] = [
+    {
+      id: 'demo_1',
+      title: 'Wi-Fi Connectivity Issue',
+      description: 'Multiple participants reporting slow or no Wi-Fi in Hall B',
+      category: 'wifi',
+      location: 'Hall B',
+      priority: 'critical',
+      status: 'in_progress',
+      sentiment: 'negative',
+      affectedParticipants: 14,
+      participantSessionIds: Array.from({ length: 14 }, (_, i) => `s${i}`),
+      participantNames: ['Priya', 'Rahul', 'Anjali', 'Karthik', 'Meera', 'Dev', 'Sana', 'Arjun', 'Nisha', 'Vikram', 'Pooja', 'Rohit', 'Divya', 'Arun'],
+      reportedAt: new Date(now.getTime() - 45 * 60000),
+      updatedAt: new Date(now.getTime() - 10 * 60000),
+      keywords: ['wifi', 'hall b', 'slow', 'disconnecting'],
+      recommendedAction: 'Deploy additional WiFi router in Hall B immediately',
+      rootCause: 'Router overload due to high participant density',
+      followupSent: false,
+      assignedTo: 'Tech Team',
+    },
+    {
+      id: 'demo_2',
+      title: 'Food Availability Issue',
+      description: 'Snacks and beverages running out near registration',
+      category: 'food',
+      location: 'Registration Area',
+      priority: 'high',
+      status: 'open',
+      sentiment: 'negative',
+      affectedParticipants: 7,
+      participantSessionIds: Array.from({ length: 7 }, (_, i) => `fs${i}`),
+      participantNames: ['Aisha', 'Rohan', 'Kavya', 'Nikhil', 'Preethi', 'Suraj', 'Lata'],
+      reportedAt: new Date(now.getTime() - 25 * 60000),
+      updatedAt: new Date(now.getTime() - 5 * 60000),
+      keywords: ['food', 'snacks', 'beverages', 'running out'],
+      recommendedAction: 'Restock refreshments at registration area',
+      rootCause: 'Underestimated participant count for catering',
+      followupSent: false,
+    },
+    {
+      id: 'demo_3',
+      title: 'Power Outlet Shortage',
+      description: 'Not enough power outlets for laptop charging in Hall A',
+      category: 'power',
+      location: 'Hall A',
+      priority: 'high',
+      status: 'open',
+      sentiment: 'negative',
+      affectedParticipants: 5,
+      participantSessionIds: Array.from({ length: 5 }, (_, i) => `ps${i}`),
+      participantNames: ['Raj', 'Sunita', 'Anand', 'Deepa', 'Kiran'],
+      reportedAt: new Date(now.getTime() - 60 * 60000),
+      updatedAt: new Date(now.getTime() - 60 * 60000),
+      keywords: ['power', 'charging', 'outlet', 'hall a'],
+      recommendedAction: 'Bring in extension cords and power strips',
+      rootCause: 'Insufficient power outlets for current participant count',
+      followupSent: false,
+    },
+    {
+      id: 'demo_4',
+      title: 'Session Audio Quality',
+      description: 'Speaker audio is low and hard to hear in the back rows',
+      category: 'sessions',
+      location: 'Hall C',
+      priority: 'medium',
+      status: 'open',
+      sentiment: 'negative',
+      affectedParticipants: 3,
+      participantSessionIds: Array.from({ length: 3 }, (_, i) => `as${i}`),
+      participantNames: ['Sindhu', 'Mahesh', 'Bhavana'],
+      reportedAt: new Date(now.getTime() - 20 * 60000),
+      updatedAt: new Date(now.getTime() - 20 * 60000),
+      keywords: ['audio', 'speaker', 'sound', 'hall c'],
+      recommendedAction: 'Adjust speaker volume or add additional speakers',
+      rootCause: 'Audio system calibration needed',
+      followupSent: false,
+    },
+    {
+      id: 'demo_5',
+      title: 'Excellent Mentor Support',
+      description: 'Participants appreciating the quality of mentor guidance',
+      category: 'appreciation',
+      location: 'All Halls',
+      priority: 'low',
+      status: 'resolved',
+      sentiment: 'positive',
+      affectedParticipants: 12,
+      participantSessionIds: Array.from({ length: 12 }, (_, i) => `ms${i}`),
+      participantNames: ['Team Alpha', 'Team Beta', 'Team Gamma'],
+      reportedAt: new Date(now.getTime() - 90 * 60000),
+      updatedAt: new Date(now.getTime() - 30 * 60000),
+      resolvedAt: new Date(now.getTime() - 30 * 60000),
+      keywords: ['mentors', 'appreciation', 'great'],
+      recommendedAction: 'Acknowledge mentor team',
+      rootCause: 'Positive feedback',
+      followupSent: true,
+    },
+  ];
+
+  memoryIssues = issues;
+  notifyIssueListeners();
+
+  // Add a critical alert
+  const criticalIssue = issues[0];
+  memoryAlerts = [{
+    id: 'alert_demo_1',
+    issueId: criticalIssue.id,
+    message: `🚨 Critical: 14 participants affected by Wi-Fi issues in Hall B`,
+    priority: 'critical',
+    createdAt: new Date(now.getTime() - 10 * 60000),
+    acknowledged: false,
+    suggestedAction: 'Deploy additional router to Hall B immediately',
+  }];
+  notifyAlertListeners();
+}
