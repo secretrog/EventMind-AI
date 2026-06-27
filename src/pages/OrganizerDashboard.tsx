@@ -969,7 +969,7 @@ export default function OrganizerDashboard() {
                     )}
                   </div>
                 </div>
-                <OrganizerChat />
+                <OrganizerChat issues={allIssues} />
               </div>
 
               {/* Quick Create CTA if no events */}
