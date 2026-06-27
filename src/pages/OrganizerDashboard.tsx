@@ -618,20 +618,19 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     const unsub1 = subscribeToIssues(newIssues => {
       setAllIssues(newIssues);
-      setStats(getDashboardStats(newIssues));
     });
     const unsub2 = subscribeToAlerts(setAlerts);
     const unsub3 = subscribeToEvents(setEvents);
     return () => { unsub1(); unsub2(); unsub3(); };
   }, []);
 
-  // Filter issues by selected event
+  // Filter issues by selected event and update stats
   useEffect(() => {
-    if (selectedEventId === 'all') {
-      setIssues(allIssues);
-    } else {
-      setIssues(allIssues.filter(i => i.eventId === selectedEventId));
-    }
+    const filtered = selectedEventId === 'all' 
+      ? allIssues 
+      : allIssues.filter(i => i.eventId === selectedEventId);
+    setIssues(filtered);
+    setStats(getDashboardStats(filtered));
   }, [allIssues, selectedEventId]);
 
   const dismissAlert = (id: string) => {
@@ -662,12 +661,12 @@ export default function OrganizerDashboard() {
     labels: ['Wi-Fi', 'Food', 'Power', 'Venue', 'Sessions', 'Other'],
     datasets: [{
       data: [
-        allIssues.filter(i => i.category === 'wifi').length,
-        allIssues.filter(i => i.category === 'food').length,
-        allIssues.filter(i => i.category === 'power').length,
-        allIssues.filter(i => i.category === 'venue').length,
-        allIssues.filter(i => i.category === 'sessions').length,
-        allIssues.filter(i => !['wifi','food','power','venue','sessions'].includes(i.category)).length,
+        issues.filter(i => i.category === 'wifi').length,
+        issues.filter(i => i.category === 'food').length,
+        issues.filter(i => i.category === 'power').length,
+        issues.filter(i => i.category === 'venue').length,
+        issues.filter(i => i.category === 'sessions').length,
+        issues.filter(i => !['wifi','food','power','venue','sessions'].includes(i.category)).length,
       ],
       backgroundColor: ['#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444'],
       borderWidth: 0,
@@ -679,9 +678,9 @@ export default function OrganizerDashboard() {
     labels: ['Positive', 'Neutral', 'Negative'],
     datasets: [{
       data: [
-        allIssues.filter(i => i.sentiment === 'positive').reduce((a, b) => a + b.affectedParticipants, 0),
-        allIssues.filter(i => i.sentiment === 'neutral').reduce((a, b) => a + b.affectedParticipants, 0),
-        allIssues.filter(i => i.sentiment === 'negative').reduce((a, b) => a + b.affectedParticipants, 0),
+        issues.filter(i => i.sentiment === 'positive').reduce((a, b) => a + b.affectedParticipants, 0),
+        issues.filter(i => i.sentiment === 'neutral').reduce((a, b) => a + b.affectedParticipants, 0),
+        issues.filter(i => i.sentiment === 'negative').reduce((a, b) => a + b.affectedParticipants, 0),
       ],
       backgroundColor: ['#10b981', '#6366f1', '#ef4444'],
       borderWidth: 0,
@@ -702,19 +701,19 @@ export default function OrganizerDashboard() {
       const bucketStart = bucketTime.getTime() - 30 * 60 * 1000;
       const bucketEnd = bucketTime.getTime() + 30 * 60 * 1000;
       
-      const reportsInBucket = allIssues.filter(issue => {
-        const time = new Date(issue.reportedAt).getTime();
+      const reports = issues.filter(iss => {
+        const time = new Date(iss.reportedAt).getTime();
         return time >= bucketStart && time < bucketEnd;
       }).length;
       
-      const resolvedInBucket = allIssues.filter(issue => {
-        if (issue.status !== 'resolved') return false;
-        const resolvedTime = new Date(issue.reportedAt).getTime() + 5 * 60000; // Mock resolved time
+      const resolutions = issues.filter(iss => {
+        if (iss.status !== 'resolved') return false;
+        const resolvedTime = iss.resolvedAt ? new Date(iss.resolvedAt).getTime() : new Date(iss.reportedAt).getTime() + 5 * 60000;
         return resolvedTime >= bucketStart && resolvedTime < bucketEnd;
       }).length;
       
-      reportsData.push(reportsInBucket);
-      resolvedData.push(resolvedInBucket);
+      reportsData.push(reports);
+      resolvedData.push(resolutions);
     }
     
     return {
@@ -969,7 +968,7 @@ export default function OrganizerDashboard() {
                     )}
                   </div>
                 </div>
-                <OrganizerChat issues={allIssues} />
+                <OrganizerChat issues={issues} />
               </div>
 
               {/* Quick Create CTA if no events */}
@@ -1198,7 +1197,7 @@ export default function OrganizerDashboard() {
           {/* ── AI Assistant ── */}
           {activePage === 'ai' && (
             <div className="max-w-2xl mx-auto">
-              <OrganizerChat issues={allIssues} />
+              <OrganizerChat issues={issues} />
             </div>
           )}
         </div>

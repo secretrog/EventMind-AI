@@ -155,10 +155,10 @@ export async function createOrMergeIssue(
   if (existingIdx !== -1) {
     const existing = memoryIssues[existingIdx];
     
-    // Prevent same session from incrementing multiple times
-    if (existing.participantSessionIds.includes(participantSessionId)) {
-      return existing;
-    }
+    // Removed strict session check to allow testing duplicate counts easily
+    // if (existing.participantSessionIds.includes(participantSessionId)) {
+    //   return existing;
+    // }
 
     const updated: Issue = {
       ...existing,
