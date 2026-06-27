@@ -46,6 +46,34 @@ function notifyAlertListeners() {
   alertListeners.forEach(cb => cb([...memoryAlerts]));
 }
 
+// Listen for cross-tab changes in localStorage
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'eventmind_issues') {
+      memoryIssues = loadData('eventmind_issues', i => ({
+        ...i,
+        reportedAt: new Date(i.reportedAt),
+        updatedAt: new Date(i.updatedAt),
+        resolvedAt: i.resolvedAt ? new Date(i.resolvedAt) : undefined,
+      }));
+      issueListeners.forEach(cb => cb([...memoryIssues]));
+    }
+    if (e.key === 'eventmind_alerts') {
+      memoryAlerts = loadData('eventmind_alerts', a => ({
+        ...a,
+        createdAt: new Date(a.createdAt),
+      }));
+      alertListeners.forEach(cb => cb([...memoryAlerts]));
+    }
+    if (e.key === 'eventmind_participants') {
+      memoryParticipants = loadData('eventmind_participants', p => ({
+        ...p,
+        joinedAt: new Date(p.joinedAt),
+      }));
+    }
+  });
+}
+
 // ─── Duplicate detection ──────────────────────────────────────────────────────
 function isSimilarIssue(existing: Issue, newCategory: IssueCategory, newLocation: string, eventId?: string): boolean {
   if (existing.eventId !== eventId) return false;

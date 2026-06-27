@@ -18,6 +18,12 @@ function getOrCreateSession(): string {
 export function useChat(eventId?: string) {
   const sessionId = useRef(getOrCreateSession());
   const eventIdRef = useRef(eventId);
+  
+  // Keep eventIdRef in sync if eventId prop changes
+  useEffect(() => {
+    eventIdRef.current = eventId;
+  }, [eventId]);
+
   const [state, setState] = useState<ChatState>({
     sessionId: sessionId.current,
     participantName: null,

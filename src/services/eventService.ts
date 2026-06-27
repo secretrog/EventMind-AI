@@ -29,6 +29,16 @@ function notifyEventListeners() {
   eventListeners.forEach(cb => cb([...memoryEvents]));
 }
 
+// Listen for cross-tab changes in localStorage
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) {
+      memoryEvents = loadEvents();
+      eventListeners.forEach(cb => cb([...memoryEvents]));
+    }
+  });
+}
+
 // ─── Create event ─────────────────────────────────────────────────────────────
 export function createEvent(data: { name: string; description: string; venue: string; date: string }): Event {
   const newEvent: Event = {
