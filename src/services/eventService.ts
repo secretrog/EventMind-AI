@@ -67,3 +67,12 @@ export function toggleEventActive(id: string) {
     notifyEventListeners();
   }
 }
+
+// ─── Delete event ─────────────────────────────────────────────────────────────
+export function deleteEvent(id: string) {
+  const idx = memoryEvents.findIndex(e => e.id === id);
+  if (idx !== -1) {
+    memoryEvents.splice(idx, 1);
+    notifyEventListeners();
+  }
+}

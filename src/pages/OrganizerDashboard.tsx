@@ -7,7 +7,7 @@ import {
   ChevronDown, Wifi, Utensils, Zap, MapPin, Clock, RefreshCw,
   Bot, Send, Sparkles, Bell, X, Activity, Star,
   ArrowUpRight, Shield, CalendarPlus, Calendar, QrCode, Plus,
-  ExternalLink, ChevronRight, Building2, ToggleLeft, ToggleRight,
+  ExternalLink, ChevronRight, Building2, ToggleLeft, ToggleRight, Trash2,
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { subscribeToIssues, subscribeToAlerts, updateIssueStatus, getDashboardStats, seedDemoData } from '../services/issueService';
-import { createEvent, subscribeToEvents } from '../services/eventService';
+import { createEvent, subscribeToEvents, deleteEvent } from '../services/eventService';
 import type { Issue, Alert, DashboardStats, Priority } from '../types';
 import type { Event } from '../types';
 
@@ -484,18 +484,19 @@ function QRModal({ event, onClose }: { event: Event; onClose: () => void }) {
 }
 
 // ─── Event Card ───────────────────────────────────────────────────────────────
-function EventCard({ event, issueCount, onShowQR, onViewIssues }: {
+function EventCard({ event, issueCount, onShowQR, onViewIssues, onDelete }: {
   event: Event;
   issueCount: number;
   onShowQR: () => void;
   onViewIssues: () => void;
+  onDelete: () => void;
 }) {
   const formattedDate = event.date
     ? new Date(event.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'No date set';
 
   return (
-    <div className="card group hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-800 hover:border-brand-200 dark:hover:border-brand-700">
+    <div className="card group hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-800 hover:border-brand-200 dark:hover:border-brand-700 relative">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -510,14 +511,23 @@ function EventCard({ event, issueCount, onShowQR, onViewIssues }: {
             )}
           </div>
         </div>
-        <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-          event.isActive
-            ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-        }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${event.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-          {event.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+            event.isActive
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${event.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+            {event.isActive ? 'Active' : 'Inactive'}
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            title="Delete Event"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {event.description && (
@@ -978,6 +988,7 @@ export default function OrganizerDashboard() {
                         setSelectedEventId(event.id);
                         setActivePage('issues');
                       }}
+                      onDelete={() => deleteEvent(event.id)}
                     />
                   ))}
                 </div>
