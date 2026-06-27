@@ -123,9 +123,11 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen relative overflow-hidden bg-slate-50 dark:bg-gray-950 transition-colors duration-500">
       {/* Premium Background Mesh */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-brand-400/20 dark:bg-brand-600/20 blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-400/20 dark:bg-violet-600/20 blur-[120px]" />
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-gradient-to-b from-white to-brand-50/30 dark:from-gray-950 dark:to-gray-900">
+        {/* Vibrant Left Gradient */}
+        <div className="absolute top-0 left-0 w-[40%] h-full bg-gradient-to-r from-brand-500/30 via-brand-400/10 to-transparent blur-[80px] animate-pulse-slow" />
+        {/* Vibrant Right Gradient */}
+        <div className="absolute top-0 right-0 w-[40%] h-full bg-gradient-to-l from-violet-500/30 via-violet-400/10 to-transparent blur-[80px]" />
       </div>
 
       <div className="flex flex-col h-full relative z-10 max-w-4xl mx-auto w-full shadow-2xl bg-white/40 dark:bg-gray-950/40 backdrop-blur-3xl border-x border-white/20 dark:border-white/5">

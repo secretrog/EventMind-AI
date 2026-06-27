@@ -815,7 +815,7 @@ export default function OrganizerDashboard() {
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
           <a
-            href="/chat"
+            href={events.length > 0 ? `/chat?eventId=${selectedEventId !== 'all' ? selectedEventId : events[0].id}` : "/chat"}
             className="nav-item flex items-center gap-3 text-sm w-full"
             target="_blank"
           >
@@ -823,7 +823,7 @@ export default function OrganizerDashboard() {
             Participant Chat
           </a>
           <a
-            href="/qr"
+            href={events.length > 0 ? `/qr?eventId=${selectedEventId !== 'all' ? selectedEventId : events[0].id}` : "/qr"}
             className="nav-item flex items-center gap-3 text-sm w-full"
             target="_blank"
           >

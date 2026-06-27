@@ -268,7 +268,7 @@ function extractIssueMock(conversation: string): Partial<Issue> | null {
 
   if (detectedCategory === 'appreciation') return null; // Not an issue
 
-  const locationMatch = conv.match(/hall [a-z]|registration|cafeteria|entrance|exit|stage|room [0-9]+/i);
+  const locationMatch = conv.match(/hall [a-z]|registration|cafeteria|entrance|exit|stage|room [0-9]+|gate|main gate|desk|lobby/i);
   const location = locationMatch ? locationMatch[0].toUpperCase() : 'Unknown';
 
   let priority: Priority = 'medium';
