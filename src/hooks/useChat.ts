@@ -129,7 +129,7 @@ export function useChat(eventId?: string) {
             await createOrMergeIssue(issue, sessionId.current, state.participantName || 'Anonymous', eventIdRef.current);
           }
         }
-      }, 3000);
+      }, 1000);
 
     } catch (err) {
       console.error('Chat error:', err);

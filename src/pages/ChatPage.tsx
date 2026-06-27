@@ -121,28 +121,35 @@ export default function ChatPage() {
   const lastAIMessage = [...messages].reverse().find(m => m.role === 'ai');
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-white to-brand-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 glass border-b border-gray-100 dark:border-gray-800 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-lg animate-glow">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-gray-900 dark:text-white text-sm leading-none">EventMind AI</h1>
-            <p className="text-xs text-brand-500 dark:text-brand-400 font-medium mt-0.5">
-              {event ? event.name : participantName ? `Chatting as ${participantName}` : 'Event Assistant'}
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col h-screen relative overflow-hidden bg-slate-50 dark:bg-gray-950 transition-colors duration-500">
+      {/* Premium Background Mesh */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-brand-400/20 dark:bg-brand-600/20 blur-[120px] animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-400/20 dark:bg-violet-600/20 blur-[120px]" />
+      </div>
 
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-medium">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Live
-          </span>
-        </div>
-      </header>
+      <div className="flex flex-col h-full relative z-10 max-w-4xl mx-auto w-full shadow-2xl bg-white/40 dark:bg-gray-950/40 backdrop-blur-3xl border-x border-white/20 dark:border-white/5">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-gray-800/50 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md z-20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-lg animate-glow">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-900 dark:text-white text-base leading-none">EventMind AI</h1>
+              <p className="text-xs text-brand-600 dark:text-brand-400 font-medium mt-1">
+                {event ? event.name : participantName ? `Chatting as ${participantName}` : 'Event Assistant'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-800/50 px-3 py-1.5 rounded-full border border-white/20 dark:border-white/5">
+            <span className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-bold tracking-wide">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+              LIVE
+            </span>
+          </div>
+        </header>
 
       {/* Messages area */}
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-5 scrollbar-hide">
@@ -177,7 +184,7 @@ export default function ChatPage() {
       </main>
 
       {/* Input area */}
-      <footer className="px-4 pb-6 pt-3 glass border-t border-gray-100 dark:border-gray-800">
+      <footer className="px-6 pb-8 pt-4 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-gray-950 dark:via-gray-950/90 relative z-20 mt-auto">
 
         <div className="relative flex items-end gap-3 max-w-3xl mx-auto">
           <div className="relative flex-1">
@@ -188,7 +195,7 @@ export default function ChatPage() {
               onKeyDown={handleKey}
               placeholder={phase === 'name' ? 'Type your name...' : 'Type a message...'}
               rows={1}
-              className="chat-input min-h-[52px] max-h-32"
+              className="chat-input min-h-[56px] max-h-32 shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
               style={{ height: 'auto' }}
               onInput={e => {
                 const el = e.currentTarget;
@@ -202,20 +209,21 @@ export default function ChatPage() {
             onClick={handleSend}
             disabled={!inputValue.trim() || sending}
             id="send-button"
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-200 shadow-lg ${
+            className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 shadow-xl ${
               inputValue.trim() && !sending
-                ? 'bg-gradient-to-br from-brand-500 to-violet-600 text-white hover:scale-110 hover:shadow-brand-500/40 active:scale-95'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-brand-500 to-violet-600 text-white hover:scale-105 hover:shadow-brand-500/40 active:scale-95'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed border border-gray-200 dark:border-gray-700'
             }`}
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-5 h-5 ml-1" />
           </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-3">
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-4 font-medium tracking-wide">
           🔒 Your feedback is anonymous · EventMind AI
         </p>
       </footer>
+      </div>
     </div>
   );
 }

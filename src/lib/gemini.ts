@@ -268,8 +268,8 @@ function extractIssueMock(conversation: string): Partial<Issue> | null {
 
   if (detectedCategory === 'appreciation') return null; // Not an issue
 
-  const locationMatch = conv.match(/hall [abc]|registration area|cafeteria|entrance|exit|stage/i);
-  const location = locationMatch ? locationMatch[0] : 'Unknown';
+  const locationMatch = conv.match(/hall [a-z]|registration|cafeteria|entrance|exit|stage|room [0-9]+/i);
+  const location = locationMatch ? locationMatch[0].toUpperCase() : 'Unknown';
 
   let priority: Priority = 'medium';
   if (conv.includes('critical') || conv.includes('very') || conv.includes('urgent')) priority = 'critical';

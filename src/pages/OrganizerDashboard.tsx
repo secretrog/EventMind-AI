@@ -97,26 +97,41 @@ function AlertBanner({ alert, onDismiss }: { alert: Alert; onDismiss: () => void
 }
 
 // ─── Organizer AI Chat ────────────────────────────────────────────────────────
-const ORGANIZER_AI_RESPONSES: Record<string, string> = {
-  'biggest issue': '🚨 **Wi-Fi connectivity in Hall B** is the biggest issue right now with **14 participants affected**. Priority: Critical. Recommended action: Deploy an additional router immediately.',
-  'enjoying': '❤️ Participants are most appreciating **mentor quality** and **event organization**. 12 positive mentions recorded for mentor support.',
-  'immediate': '⚡ The **Wi-Fi issue in Hall B** needs immediate attention — 14 participants are affected and the count is still rising. Also check **food availability** at registration (7 affected).',
-  'tomorrow': '📝 For tomorrow, recommend: (1) Pre-deploy additional routers in all halls, (2) Increase food stock by 30%, (3) Add more power outlets in Hall A.',
-  'default': '📊 Currently tracking **4 active issues**, **14 most affected** by Wi-Fi in Hall B. Satisfaction score: 78%. Top priority: Wi-Fi > Food > Power.',
-};
-
-function getOrganizerResponse(query: string): string {
+function getOrganizerResponse(query: string, issues: Issue[]): string {
   const q = query.toLowerCase();
-  if (q.includes('biggest') || q.includes('major') || q.includes('worst')) return ORGANIZER_AI_RESPONSES['biggest issue'];
-  if (q.includes('enjoy') || q.includes('positive') || q.includes('good') || q.includes('appreciat')) return ORGANIZER_AI_RESPONSES['enjoying'];
-  if (q.includes('immediate') || q.includes('urgent') || q.includes('now') || q.includes('attention')) return ORGANIZER_AI_RESPONSES['immediate'];
-  if (q.includes('tomorrow') || q.includes('next') || q.includes('improve') || q.includes('future')) return ORGANIZER_AI_RESPONSES['tomorrow'];
-  return ORGANIZER_AI_RESPONSES['default'];
+  const openIssues = issues.filter(i => i.status !== 'resolved');
+  
+  if (q.includes('biggest') || q.includes('major') || q.includes('worst')) {
+    if (openIssues.length === 0) return '🎉 Good news! There are currently no open issues.';
+    const biggest = [...openIssues].sort((a, b) => b.affectedParticipants - a.affectedParticipants)[0];
+    return `🚨 **${biggest.category} in ${biggest.location}** is the biggest issue right now with **${biggest.affectedParticipants} participants affected**. Priority: ${biggest.priority}.`;
+  }
+  if (q.includes('enjoy') || q.includes('positive') || q.includes('good') || q.includes('appreciat')) {
+    const positiveIssues = issues.filter(i => i.sentiment === 'positive');
+    if (positiveIssues.length === 0) return 'Neutral sentiment so far. No specific appreciations recorded yet.';
+    return `❤️ Participants are mostly appreciating **${positiveIssues[0].category}** in **${positiveIssues[0].location}**. ${positiveIssues.length} positive interactions recorded.`;
+  }
+  if (q.includes('immediate') || q.includes('urgent') || q.includes('now') || q.includes('attention')) {
+    const critical = openIssues.filter(i => i.priority === 'critical');
+    if (critical.length === 0) {
+      if (openIssues.length === 0) return '✅ No critical issues need immediate attention right now.';
+      const biggest = [...openIssues].sort((a, b) => b.affectedParticipants - a.affectedParticipants)[0];
+      return `⚡ No critical issues, but the **${biggest.category} issue in ${biggest.location}** affects ${biggest.affectedParticipants} people.`;
+    }
+    return `⚡ The **${critical[0].category} issue in ${critical[0].location}** needs immediate attention — ${critical[0].affectedParticipants} participants are affected.`;
+  }
+  if (q.includes('tomorrow') || q.includes('next') || q.includes('improve') || q.includes('future')) {
+    const topCategories = [...new Set(issues.map(i => i.category))];
+    if (topCategories.length === 0) return 'Not enough data for suggestions yet. Run the event a bit longer!';
+    return `📝 For tomorrow, recommend focusing on: **${topCategories.join(', ')}** based on today's feedback.`;
+  }
+  
+  return `📊 Currently tracking **${openIssues.length} active issues** out of ${issues.length} total reports. Top categories: ${[...new Set(openIssues.map(i => i.category))].slice(0,3).join(', ') || 'None'}.`;
 }
 
 interface OrgChatMsg { role: 'user' | 'ai'; text: string }
 
-function OrganizerChat() {
+function OrganizerChat({ issues }: { issues: Issue[] }) {
   const [messages, setMessages] = useState<OrgChatMsg[]>([
     { role: 'ai', text: '👋 Hi! I\'m your **Event Intelligence Assistant**. Ask me anything about the event.\n\nTry:\n• "What is the biggest issue right now?"\n• "What are participants enjoying?"\n• "What needs immediate attention?"' },
   ]);
@@ -135,7 +150,7 @@ function OrganizerChat() {
     setMessages(prev => [...prev, { role: 'user', text: q }]);
     setTyping(true);
     await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
-    const response = getOrganizerResponse(q);
+    const response = getOrganizerResponse(q, issues);
     setTyping(false);
     setMessages(prev => [...prev, { role: 'ai', text: response }]);
   };
@@ -252,33 +267,40 @@ function IssueRow({ issue, onUpdate }: { issue: Issue; onUpdate: () => void }) {
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {issue.status === 'open' && (
-            <button
-              onClick={() => handleAction('in_progress')}
-              disabled={loading}
-              className="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors font-medium"
-            >
-              Start
-            </button>
-          )}
-          {issue.status !== 'resolved' && (
-            <button
-              onClick={() => handleAction('resolved')}
-              disabled={loading}
-              className="px-2 py-1 text-xs bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 transition-colors font-medium"
-            >
-              Resolve
-            </button>
-          )}
-          {issue.status !== 'escalated' && issue.priority !== 'critical' && (
-            <button
-              onClick={() => handleAction('escalated')}
-              disabled={loading}
-              className="px-2 py-1 text-xs bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 transition-colors font-medium"
-            >
-              Escalate
-            </button>
+        <div className="flex items-center gap-2">
+          {issue.status === 'resolved' ? (
+            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-bold text-xs px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
+              <CheckCircle2 className="w-4 h-4" />
+              Resolved
+            </div>
+          ) : (
+            <>
+              {issue.status === 'open' && (
+                <button
+                  onClick={() => handleAction('in_progress')}
+                  disabled={loading}
+                  className="px-2.5 py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors font-semibold shadow-sm border border-blue-100 dark:border-blue-800"
+                >
+                  Start
+                </button>
+              )}
+              <button
+                onClick={() => handleAction('resolved')}
+                disabled={loading}
+                className="px-2.5 py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-semibold shadow-sm"
+              >
+                Resolve
+              </button>
+              {issue.status !== 'escalated' && issue.priority !== 'critical' && (
+                <button
+                  onClick={() => handleAction('escalated')}
+                  disabled={loading}
+                  className="px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors font-medium opacity-0 group-hover:opacity-100"
+                >
+                  Escalate
+                </button>
+              )}
+            </>
           )}
         </div>
       </td>
@@ -666,32 +688,63 @@ export default function OrganizerDashboard() {
     }],
   };
 
-  const trendLabels = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00'];
-  const trendData = {
-    labels: trendLabels,
-    datasets: [
-      {
-        label: 'Reports',
-        data: [2, 5, 8, 14, 11, 7, 4],
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99,102,241,0.1)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: '#6366f1',
-      },
-      {
-        label: 'Resolved',
-        data: [0, 1, 3, 5, 8, 6, 4],
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,0.1)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: '#10b981',
-      },
-    ],
+  // Dynamic Trend Data (last 6 buckets, 1 hour each)
+  const generateTrendData = () => {
+    const now = new Date();
+    const labels = [];
+    const reportsData = [];
+    const resolvedData = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const bucketTime = new Date(now.getTime() - i * 60 * 60 * 1000);
+      labels.push(bucketTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      
+      const bucketStart = bucketTime.getTime() - 30 * 60 * 1000;
+      const bucketEnd = bucketTime.getTime() + 30 * 60 * 1000;
+      
+      const reportsInBucket = allIssues.filter(issue => {
+        const time = new Date(issue.reportedAt).getTime();
+        return time >= bucketStart && time < bucketEnd;
+      }).length;
+      
+      const resolvedInBucket = allIssues.filter(issue => {
+        if (issue.status !== 'resolved') return false;
+        const resolvedTime = new Date(issue.reportedAt).getTime() + 5 * 60000; // Mock resolved time
+        return resolvedTime >= bucketStart && resolvedTime < bucketEnd;
+      }).length;
+      
+      reportsData.push(reportsInBucket);
+      resolvedData.push(resolvedInBucket);
+    }
+    
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Reports',
+          data: reportsData,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#6366f1',
+        },
+        {
+          label: 'Resolved',
+          data: resolvedData,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981',
+        },
+      ]
+    };
   };
+
+  const trendData = generateTrendData();
 
   const chartOptions = {
     responsive: true,
@@ -1145,7 +1198,7 @@ export default function OrganizerDashboard() {
           {/* ── AI Assistant ── */}
           {activePage === 'ai' && (
             <div className="max-w-2xl mx-auto">
-              <OrganizerChat />
+              <OrganizerChat issues={allIssues} />
             </div>
           )}
         </div>
