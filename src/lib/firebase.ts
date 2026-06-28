@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -30,4 +31,31 @@ if (isFirebaseConfigured()) {
   }
 }
 
-export { app, db, auth };
+// Google Sign-In helper
+export async function signInWithGoogle(): Promise<User | null> {
+  if (!auth) return null;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    const result = await signInWithPopup(auth, provider);
+    return result.user;
+  } catch (err: any) {
+    if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+      console.error('Google sign-in failed:', err);
+    }
+    return null;
+  }
+}
+
+// Auth state observer
+export function onAuthChange(callback: (user: User | null) => void): () => void {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+  return onAuthStateChanged(auth, callback);
+}
+
+export { app, db, auth, GoogleAuthProvider };
+export type { User };

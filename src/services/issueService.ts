@@ -4,6 +4,7 @@ import {
   serverTimestamp, increment
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
+import { v4 as uuidv4 } from 'uuid';
 import type { Issue, IssueCategory, Priority, Participant, Alert, DashboardStats } from '../types';
 
 // ─── In-memory store for demo mode ───────────────────────────────────────────
@@ -353,6 +354,105 @@ export function registerParticipant(sessionId: string, name: string) {
     memoryParticipants.push(participant);
     saveData('eventmind_participants', memoryParticipants);
   }
+}
+
+// ─── Get or create participant by Email ──────────────────────────────────────────
+export async function syncParticipantByEmail(email: string, name: string): Promise<string> {
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanName = name.trim() || 'Anonymous';
+  
+  if (isFirebaseConfigured() && db) {
+    try {
+      const participantsRef = collection(db, 'participants');
+      const q = query(participantsRef, where('email', '==', cleanEmail));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Return existing session ID to resume user state
+        const existingDoc = snapshot.docs[0];
+        return existingDoc.data().sessionId;
+      } else {
+        // Create new participant mapping
+        const newSessionId = uuidv4();
+        await addDoc(participantsRef, {
+          email: cleanEmail,
+          name: cleanName,
+          sessionId: newSessionId,
+          createdAt: serverTimestamp(),
+        });
+        return newSessionId;
+      }
+    } catch (err) {
+      console.error('Error syncing participant by email:', err);
+    }
+  }
+
+  // Demo mode / Fallback using localStorage
+  const localParticipants: Array<{ email: string; name: string; sessionId: string }> = JSON.parse(
+    localStorage.getItem('eventmind_participants_by_email') || '[]'
+  );
+  const match = localParticipants.find(p => p.email === cleanEmail);
+  if (match) {
+    return match.sessionId;
+  } else {
+    const newSessionId = uuidv4();
+    localParticipants.push({ email: cleanEmail, name: cleanName, sessionId: newSessionId });
+    localStorage.setItem('eventmind_participants_by_email', JSON.stringify(localParticipants));
+    return newSessionId;
+  }
+}
+
+// ─── Save & load chat messages by session (Gmail-linked, cross-device) ────────
+export async function saveChatMessages(
+  sessionId: string,
+  messages: Array<{ role: string; content: string; timestamp: string }>
+): Promise<void> {
+  if (isFirebaseConfigured() && db) {
+    try {
+      const ref = collection(db, 'chatSessions');
+      const q = query(ref, where('sessionId', '==', sessionId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        await updateDoc(snapshot.docs[0].ref, {
+          messages,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(ref, {
+          sessionId,
+          messages,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error('Error saving chat messages:', err);
+    }
+    return;
+  }
+  // Fallback: localStorage
+  localStorage.setItem(`eventmind_chat_${sessionId}`, JSON.stringify(messages));
+}
+
+export async function loadChatMessages(
+  sessionId: string
+): Promise<Array<{ role: string; content: string; timestamp: string }> | null> {
+  if (isFirebaseConfigured() && db) {
+    try {
+      const ref = collection(db, 'chatSessions');
+      const q = query(ref, where('sessionId', '==', sessionId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs[0].data().messages || null;
+      }
+    } catch (err) {
+      console.error('Error loading chat messages:', err);
+    }
+    return null;
+  }
+  // Fallback: localStorage
+  const saved = localStorage.getItem(`eventmind_chat_${sessionId}`);
+  return saved ? JSON.parse(saved) : null;
 }
 
 // ─── Seed demo data ───────────────────────────────────────────────────────────
