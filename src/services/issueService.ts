@@ -97,12 +97,12 @@ export async function createOrMergeIssue(
     // Firebase path
     const issuesRef = collection(db, 'issues');
     const q = query(issuesRef,
-      where('category', '==', category),
-      where('status', 'in', ['open', 'in_progress'])
+      where('category', '==', category)
     );
     const snapshot = await getDocs(q);
     const existing = snapshot.docs.find(d => {
       const data = d.data() as Issue;
+      if (data.status !== 'open' && data.status !== 'in_progress') return false;
       return isSimilarIssue(data, category, location, eventId);
     });
 
