@@ -146,16 +146,12 @@ export default function ReportFormPage() {
 
     const primaryCategory = issueCategory[0] as IssueCategory || 'other';
 
-    await submitFeedback({
-      eventId,
+    const feedbackPayload: any = {
       participantName,
       participantSessionId: activeSessionId,
       location: location || 'Unknown',
       overallRating,
       overallExperience,
-      venueRating: venueRating > 0 ? venueRating : undefined,
-      foodRating: foodRating > 0 ? foodRating : undefined,
-      wifiRating: wifiRating > 0 ? wifiRating : undefined,
       likes,
       dislikes,
       improvements,
@@ -163,9 +159,22 @@ export default function ReportFormPage() {
       additionalComments,
       issueCategory,
       sentiment: overallRating >= 4 ? 'positive' : overallRating === 3 ? 'neutral' : 'negative',
-    });
-    setLoading(false);
-    setSubmitted(true);
+    };
+
+    if (eventId) feedbackPayload.eventId = eventId;
+    if (venueRating > 0) feedbackPayload.venueRating = venueRating;
+    if (foodRating > 0) feedbackPayload.foodRating = foodRating;
+    if (wifiRating > 0) feedbackPayload.wifiRating = wifiRating;
+
+    try {
+      await submitFeedback(feedbackPayload);
+      setSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert('Failed to submit feedback. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetForm = () => {
