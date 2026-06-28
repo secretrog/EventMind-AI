@@ -137,6 +137,7 @@ export async function createOrMergeIssue(
       recommendedAction: issueData.recommendedAction || '',
       rootCause: issueData.rootCause || '',
       followupSent: false,
+      rating: issueData.rating,
     };
 
     const docRef = await addDoc(issuesRef, {
@@ -198,6 +199,7 @@ export async function createOrMergeIssue(
     recommendedAction: issueData.recommendedAction || 'Investigate and address the reported issue',
     rootCause: issueData.rootCause || 'Participant-reported problem',
     followupSent: false,
+    rating: issueData.rating,
   };
 
   memoryIssues.push(newIssue);
@@ -231,7 +233,16 @@ export function subscribeToIssues(callback: (issues: Issue[]) => void, eventId?:
   if (isFirebaseConfigured() && db) {
     const q = query(collection(db, 'issues'), orderBy('reportedAt', 'desc'));
     return onSnapshot(q, snapshot => {
-      let issues = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Issue));
+      let issues = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          ...data,
+          id: d.id,
+          reportedAt: data.reportedAt?.toDate ? data.reportedAt.toDate() : new Date(data.reportedAt || Date.now()),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
+          resolvedAt: data.resolvedAt?.toDate ? data.resolvedAt.toDate() : data.resolvedAt ? new Date(data.resolvedAt) : undefined,
+        } as Issue;
+      });
       if (eventId) issues = issues.filter(i => i.eventId === eventId);
       callback(issues);
     });
@@ -253,7 +264,14 @@ export function subscribeToAlerts(callback: (alerts: Alert[]) => void): () => vo
   if (isFirebaseConfigured() && db) {
     const q = query(collection(db, 'alerts'), orderBy('createdAt', 'desc'));
     return onSnapshot(q, snapshot => {
-      const alerts = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Alert));
+      const alerts = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          ...data,
+          id: d.id,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+        } as Alert;
+      });
       callback(alerts);
     });
   }
@@ -306,6 +324,11 @@ export function getDashboardStats(issues: Issue[]): DashboardStats {
     ? Math.min(98, Math.round(60 + (resolved.length / Math.max(issues.length, 1)) * 40))
     : 72;
 
+  const ratedIssues = issues.filter(i => i.rating !== undefined);
+  const averageRating = ratedIssues.length > 0
+    ? Number((ratedIssues.reduce((sum, i) => sum + (i.rating || 0), 0) / ratedIssues.length).toFixed(1))
+    : 0;
+
   return {
     liveParticipants: Math.max(totalParticipants, memoryParticipants.length),
     totalConversations: Math.max(totalParticipants, memoryParticipants.length),
@@ -314,6 +337,7 @@ export function getDashboardStats(issues: Issue[]): DashboardStats {
     criticalAlerts: critical.length,
     satisfactionScore,
     avgResponseTime: 3.2,
+    averageRating,
   };
 }
 

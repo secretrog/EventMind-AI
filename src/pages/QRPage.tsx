@@ -8,9 +8,14 @@ export default function QRPage() {
   const eventId = searchParams.get('eventId') || undefined;
   const event = eventId ? getEventById(eventId) : undefined;
 
-  const chatUrl = eventId
-    ? `${window.location.origin}/chat?eventId=${eventId}`
-    : `${window.location.origin}/chat`;
+  const location = searchParams.get('location') || '';
+  const mode = searchParams.get('mode') || 'form';
+
+  const baseUrl = eventId
+    ? `${window.location.origin}/${mode}?eventId=${eventId}`
+    : `${window.location.origin}/${mode}`;
+    
+  const chatUrl = location ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}location=${encodeURIComponent(location)}` : baseUrl;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-brand-950 to-gray-900 flex flex-col items-center justify-center p-8 relative overflow-hidden">

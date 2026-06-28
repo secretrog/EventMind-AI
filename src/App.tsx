@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import ChatPage from './pages/ChatPage';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import QRPage from './pages/QRPage';
+import ReportFormPage from './pages/ReportFormPage';
 import './index.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <Route path="/dashboard" element={<OrganizerDashboard />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/qr" element={<QRPage />} />
+        <Route path="/report" element={<ReportFormPage />} />
       </Routes>
     </Router>
   );

@@ -63,6 +63,7 @@ export interface Issue {
     partially: number;
     no: number;
   };
+  rating?: number;
 }
 
 export interface Alert {
@@ -83,6 +84,7 @@ export interface DashboardStats {
   criticalAlerts: number;
   satisfactionScore: number;
   avgResponseTime: number;
+  averageRating: number;
 }
 
 export interface ChatState {

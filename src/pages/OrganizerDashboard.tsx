@@ -438,8 +438,13 @@ function CreateEventModal({ onClose, onCreate }: { onClose: () => void; onCreate
 
 // ─── QR Modal ─────────────────────────────────────────────────────────────────
 function QRModal({ event, onClose }: { event: Event; onClose: () => void }) {
-  const chatUrl = `${window.location.origin}/chat?eventId=${event.id}`;
-  const qrPageUrl = `/qr?eventId=${event.id}`;
+  const [location, setLocation] = useState('');
+  const [mode, setMode] = useState<'chat' | 'form'>('form');
+  
+  const modePath = mode === 'form' ? 'report' : 'chat';
+  const baseUrl = `${window.location.origin}/${modePath}?eventId=${event.id}`;
+  const targetUrl = location ? `${baseUrl}&location=${encodeURIComponent(location)}` : baseUrl;
+  const qrPageUrl = `/qr?eventId=${event.id}${location ? `&location=${encodeURIComponent(location)}` : ''}&mode=${mode}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.7)' }}>
@@ -461,7 +466,7 @@ function QRModal({ event, onClose }: { event: Event; onClose: () => void }) {
             <div className="absolute inset-0 bg-brand-500/30 blur-2xl rounded-2xl scale-110" />
             <div className="relative bg-white rounded-2xl p-5 shadow-2xl">
               <QRCodeSVG
-                value={chatUrl}
+                value={targetUrl}
                 size={200}
                 fgColor="#4f46e5"
                 bgColor="#ffffff"
@@ -472,21 +477,42 @@ function QRModal({ event, onClose }: { event: Event; onClose: () => void }) {
           </div>
 
           <div className="mt-5 text-center w-full">
-            <p className="text-white font-bold mb-1">📱 Participants scan this</p>
-            <p className="text-gray-400 text-xs mb-4">Anonymous · Powered by EventMind AI</p>
+            <div className="flex flex-col gap-3 mb-4 w-full">
+              <div className="flex bg-white/10 rounded-xl p-1">
+                <button
+                  onClick={() => setMode('chat')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${mode === 'chat' ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                  AI Chat
+                </button>
+                <button
+                  onClick={() => setMode('form')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${mode === 'form' ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Direct Form
+                </button>
+              </div>
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Optional: Pre-fill Location (e.g. Hall A)"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
+              />
+            </div>
             <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-brand-300 font-mono break-all mb-4">
-              {chatUrl}
+              {targetUrl}
             </div>
 
             <div className="flex gap-2">
               <a
-                href={chatUrl}
+                href={targetUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-medium rounded-xl transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Test Chat
+                Test Link
               </a>
               <a
                 href={qrPageUrl}
@@ -597,6 +623,7 @@ export default function OrganizerDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     liveParticipants: 0, totalConversations: 0, openIssues: 0,
     resolvedIssues: 0, criticalAlerts: 0, satisfactionScore: 0, avgResponseTime: 0,
+    averageRating: 0,
   });
   const [activeTab, setActiveTab] = useState<'all' | 'open' | 'critical' | 'resolved'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -891,7 +918,7 @@ export default function OrganizerDashboard() {
           {/* ── Dashboard Overview ── */}
           {activePage === 'dashboard' && (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <MetricCard
                   label="Live Participants"
                   value={stats.liveParticipants || 0}
@@ -915,6 +942,14 @@ export default function OrganizerDashboard() {
                   color="bg-green-50 dark:bg-green-900/30"
                   sub="This session"
                   trend="up"
+                />
+                <MetricCard
+                  label="Avg Rating"
+                  value={stats.averageRating > 0 ? `${stats.averageRating} ★` : 'N/A'}
+                  icon={<Star className="w-5 h-5 text-yellow-500" />}
+                  color="bg-yellow-50 dark:bg-yellow-900/30"
+                  sub="From direct reports"
+                  trend="neutral"
                 />
                 <MetricCard
                   label="Events Created"
@@ -1149,50 +1184,160 @@ export default function OrganizerDashboard() {
           )}
 
           {/* ── Analytics ── */}
-          {activePage === 'analytics' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="card">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4">Issue Distribution</h3>
-                <div className="h-64">
-                  <Doughnut data={categoryData} options={chartOptions} />
+          {activePage === 'analytics' && (() => {
+            const total = issues.length || 1;
+            const categoryStats = [
+              { label: 'Wi-Fi', key: 'wifi', color: '#6366f1', icon: '📶' },
+              { label: 'Food', key: 'food', color: '#f59e0b', icon: '🍕' },
+              { label: 'Power', key: 'power', color: '#10b981', icon: '🔌' },
+              { label: 'Venue', key: 'venue', color: '#3b82f6', icon: '🏢' },
+              { label: 'Sessions', key: 'sessions', color: '#8b5cf6', icon: '🎤' },
+              { label: 'Other', key: 'other', color: '#ef4444', icon: '💬' },
+            ].map(c => ({ ...c, count: issues.filter(i => i.category === c.key).length, pct: Math.round((issues.filter(i => i.category === c.key).length / total) * 100) }));
+            const sentStats = [
+              { label: 'Positive 😊', key: 'positive', color: 'bg-emerald-500', text: 'text-emerald-600' },
+              { label: 'Neutral 😐', key: 'neutral', color: 'bg-indigo-500', text: 'text-indigo-600' },
+              { label: 'Negative 😞', key: 'negative', color: 'bg-red-500', text: 'text-red-600' },
+            ].map(s => ({ ...s, count: issues.filter(i => i.sentiment === s.key).length, pct: Math.round((issues.filter(i => i.sentiment === s.key).length / total) * 100) }));
+            const statusStats = [
+              { label: 'Open', key: 'open', color: 'bg-orange-500', text: 'text-orange-600' },
+              { label: 'In Progress', key: 'in_progress', color: 'bg-blue-500', text: 'text-blue-600' },
+              { label: 'Resolved', key: 'resolved', color: 'bg-green-500', text: 'text-green-600' },
+              { label: 'Escalated', key: 'escalated', color: 'bg-red-500', text: 'text-red-600' },
+            ].map(s => ({ ...s, count: issues.filter(i => i.status === s.key).length, pct: Math.round((issues.filter(i => i.status === s.key).length / total) * 100) }));
+            const priorityStats = [
+              { label: 'Critical 🔴', key: 'critical', color: 'bg-red-600', text: 'text-red-600' },
+              { label: 'High 🟠', key: 'high', color: 'bg-orange-500', text: 'text-orange-600' },
+              { label: 'Medium 🟡', key: 'medium', color: 'bg-yellow-500', text: 'text-yellow-600' },
+              { label: 'Low 🟢', key: 'low', color: 'bg-green-500', text: 'text-green-600' },
+            ].map(p => ({ ...p, count: issues.filter(i => i.priority === p.key).length, pct: Math.round((issues.filter(i => i.priority === p.key).length / total) * 100) }));
+            const ratedIssues = issues.filter(i => i.rating !== undefined);
+            const ratingStats = [5, 4, 3, 2, 1].map(star => ({ star, count: ratedIssues.filter(i => i.rating === star).length, pct: ratedIssues.length > 0 ? Math.round((ratedIssues.filter(i => i.rating === star).length / ratedIssues.length) * 100) : 0 }));
+            const avgRating = ratedIssues.length > 0 ? (ratedIssues.reduce((s, i) => s + (i.rating || 0), 0) / ratedIssues.length).toFixed(1) : '—';
+            const resolvedCount = issues.filter(i => i.status === 'resolved').length;
+            const resolutionRate = Math.round((resolvedCount / total) * 100);
+            const PercentBar = ({ label, pct, color, text, count }: { label: string; pct: number; color: string; text: string; count: number }) => (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">{label}</span>
+                  <span className={`font-bold ${text}`}>{pct}% <span className="text-gray-400 font-normal">({count})</span></span>
+                </div>
+                <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
-              <div className="card">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4">Sentiment Distribution</h3>
-                <div className="h-64">
-                  <Doughnut data={sentimentData} options={chartOptions} />
-                </div>
-              </div>
-              <div className="card lg:col-span-2">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4">Live Issue Trend</h3>
-                <div className="h-64">
-                  <Line data={trendData} options={lineOptions} />
-                </div>
-              </div>
-              <div className="card lg:col-span-2">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand-500" />
-                  Hindsight Memory — Recommendations for Next Event
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            );
+            return (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { title: 'Wi-Fi Planning', desc: 'Deploy 2x routers per hall. Reserve 1 backup router.', icon: Wifi, score: '94%' },
-                    { title: 'Food Catering', desc: 'Order 30% more than expected participant count.', icon: Utensils, score: '88%' },
-                    { title: 'Power Supply', desc: 'Install power strips every 3 seats in hackathon halls.', icon: Zap, score: '91%' },
-                  ].map(rec => (
-                    <div key={rec.title} className="p-4 bg-gradient-to-br from-brand-50 to-violet-50 dark:from-brand-900/20 dark:to-violet-900/20 rounded-xl border border-brand-100 dark:border-brand-800/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <rec.icon className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{rec.title}</span>
-                        <span className="ml-auto text-xs text-green-600 dark:text-green-400 font-bold">{rec.score} success</span>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">{rec.desc}</p>
+                    { label: 'Total Submissions', val: issues.length, sub: 'All reports', color: 'text-indigo-600' },
+                    { label: 'Resolution Rate', val: `${resolutionRate}%`, sub: `${resolvedCount} resolved`, color: 'text-green-600' },
+                    { label: 'Avg Rating', val: avgRating !== '—' ? `${avgRating} ★` : '—', sub: `${ratedIssues.length} rated`, color: 'text-yellow-600' },
+                    { label: 'Affected Users', val: issues.reduce((s, i) => s + i.affectedParticipants, 0), sub: 'Total impacted', color: 'text-red-600' },
+                  ].map(m => (
+                    <div key={m.label} className="card flex flex-col gap-1">
+                      <div className={`text-2xl font-black ${m.color}`}>{m.val}</div>
+                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-200">{m.label}</div>
+                      <div className="text-xs text-gray-400">{m.sub}</div>
                     </div>
                   ))}
                 </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  <div className="card space-y-4">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />Issue Category Breakdown</h3>
+                    <div className="h-48"><Doughnut data={{ labels: categoryStats.map(c => c.label), datasets: [{ data: categoryStats.map(c => c.count), backgroundColor: categoryStats.map(c => c.color), borderWidth: 2, hoverOffset: 8 }] }} options={{ ...chartOptions, cutout: '65%' } as any} /></div>
+                    <div className="space-y-2.5 mt-2">
+                      {categoryStats.map(c => (
+                        <div key={c.key} className="space-y-1">
+                          <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">{c.icon} {c.label}</span><span className="font-bold" style={{ color: c.color }}>{c.pct}% ({c.count})</span></div>
+                          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{ width: `${c.pct}%`, backgroundColor: c.color }} /></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" />Rating Distribution</h3>
+                      <div className="text-right"><div className="text-2xl font-black text-yellow-500">{avgRating} ★</div><div className="text-xs text-gray-400">{ratedIssues.length} responses</div></div>
+                    </div>
+                    <div className="space-y-3">
+                      {ratingStats.map(r => (
+                        <div key={r.star} className="flex items-center gap-3">
+                          <div className="flex items-center gap-0.5 w-20 flex-shrink-0">{Array.from({ length: r.star }).map((_, i) => (<Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />))}</div>
+                          <div className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full transition-all duration-700" style={{ width: `${r.pct}%` }} /></div>
+                          <span className="text-xs font-bold text-gray-600 dark:text-gray-300 w-10 text-right">{r.pct}%</span>
+                          <span className="text-xs text-gray-400 w-6">({r.count})</span>
+                        </div>
+                      ))}
+                    </div>
+                    {ratedIssues.length === 0 && <p className="text-sm text-gray-400 text-center py-2">Ratings appear when users submit the Direct Form.</p>}
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2.5">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Sentiment Analysis</h4>
+                      {sentStats.map(s => <PercentBar key={s.key} label={s.label} pct={s.pct} color={s.color} text={s.text} count={s.count} />)}
+                    </div>
+                  </div>
+                  <div className="card space-y-4">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-400 inline-block" />Resolution Status</h3>
+                    <div className="flex items-center gap-6">
+                      <div className="relative w-28 h-28 flex-shrink-0">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray={`${resolutionRate} ${100 - resolutionRate}`} strokeLinecap="round" className="transition-all duration-700" />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-xl font-black text-green-600">{resolutionRate}%</span><span className="text-xs text-gray-400">resolved</span></div>
+                      </div>
+                      <div className="flex-1 space-y-2.5">{statusStats.map(s => <PercentBar key={s.key} label={s.label} pct={s.pct} color={s.color} text={s.text} count={s.count} />)}</div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2.5">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Priority Breakdown</h4>
+                      {priorityStats.map(p => <PercentBar key={p.key} label={p.label} pct={p.pct} color={p.color} text={p.text} count={p.count} />)}
+                    </div>
+                  </div>
+                  <div className="card">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-400 inline-block" />Live Issue Trend (Today)</h3>
+                    <div className="h-52"><Line data={trendData} options={lineOptions} /></div>
+                  </div>
+                </div>
+                <div className="card">
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2"><MapPin className="w-4 h-4 text-brand-500" />Most Affected Locations</h3>
+                  {(() => {
+                    const locationMap: Record<string, number> = {};
+                    issues.forEach(i => { const loc = i.location || 'Unknown'; locationMap[loc] = (locationMap[loc] || 0) + i.affectedParticipants; });
+                    const sorted = Object.entries(locationMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+                    const maxVal = sorted[0]?.[1] || 1;
+                    return sorted.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-6">No location data yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {sorted.map(([loc, count]) => (
+                          <div key={loc} className="space-y-1">
+                            <div className="flex justify-between text-xs"><span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{loc}</span><span className="font-bold text-brand-600 dark:text-brand-400">{Math.round((count / maxVal) * 100)}% · {count} affected</span></div>
+                            <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-brand-500 to-violet-500 rounded-full transition-all duration-700" style={{ width: `${Math.round((count / maxVal) * 100)}%` }} /></div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="card">
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2"><Shield className="w-4 h-4 text-brand-500" />AI Recommendations for Next Event</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { title: 'Wi-Fi Planning', desc: 'Deploy 2× routers per hall. Reserve 1 backup router.', icon: Wifi, score: '94%' },
+                      { title: 'Food Catering', desc: 'Order 30% more than expected participant count.', icon: Utensils, score: '88%' },
+                      { title: 'Power Supply', desc: 'Install power strips every 3 seats in hackathon halls.', icon: Zap, score: '91%' },
+                    ].map(rec => (
+                      <div key={rec.title} className="p-4 bg-gradient-to-br from-brand-50 to-violet-50 dark:from-brand-900/20 dark:to-violet-900/20 rounded-xl border border-brand-100 dark:border-brand-800/30">
+                        <div className="flex items-center gap-2 mb-2"><rec.icon className="w-4 h-4 text-brand-600 dark:text-brand-400" /><span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{rec.title}</span><span className="ml-auto text-xs text-green-600 dark:text-green-400 font-bold">{rec.score} success</span></div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{rec.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── AI Assistant ── */}
           {activePage === 'ai' && (
