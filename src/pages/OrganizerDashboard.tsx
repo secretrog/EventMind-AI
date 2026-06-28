@@ -616,6 +616,24 @@ function EventCard({ event, issueCount, onShowQR, onViewIssues, onDelete }: {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function OrganizerDashboard() {
+  const [passcode, setPasscode] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(() => {
+    return sessionStorage.getItem('eventmind_dashboard_unlocked') === 'true';
+  });
+  const [passcodeError, setPasscodeError] = useState('');
+
+  const handleUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctCode = import.meta.env.VITE_DASHBOARD_CODE || '2026';
+    if (passcode === correctCode) {
+      sessionStorage.setItem('eventmind_dashboard_unlocked', 'true');
+      setIsUnlocked(true);
+      setPasscodeError('');
+    } else {
+      setPasscodeError('Invalid passcode. Please try again.');
+    }
+  };
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [allIssues, setAllIssues] = useState<Issue[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -793,6 +811,54 @@ export default function OrganizerDashboard() {
     { id: 'analytics', icon: TrendingUp, label: 'Analytics' },
     { id: 'ai', icon: Bot, label: 'AI Assistant' },
   ];
+
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-950 p-6 font-sans relative overflow-hidden">
+        {/* Background blobs for premium mesh effect */}
+        <div className="absolute w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[100px] -top-40 -left-40 animate-pulse" />
+        <div className="absolute w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px] -bottom-40 -right-40 animate-pulse" style={{ animationDelay: '2s' }} />
+
+        <div className="relative z-10 w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl text-center">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-xl">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Organizer Portal</h2>
+          <p className="text-gray-400 text-sm mb-8">Please enter the security passcode to access the EventMind AI dashboard.</p>
+
+          <form onSubmit={handleUnlock} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={passcode}
+                onChange={e => setPasscode(e.target.value)}
+                placeholder="Enter passcode..."
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-center text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all font-mono tracking-widest"
+                autoFocus
+              />
+              {passcodeError && (
+                <p className="text-red-400 text-xs mt-2 font-medium">{passcodeError}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-brand-500 to-violet-600 hover:opacity-90 text-white rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Access Dashboard
+            </button>
+          </form>
+
+          <p className="text-xs text-gray-500 mt-8 tracking-wide font-medium">
+            🔒 Protected by EventMind AI · Secure Console
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">

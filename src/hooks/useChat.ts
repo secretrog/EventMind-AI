@@ -97,12 +97,11 @@ export function useChat(eventId?: string) {
         timestamp: new Date(),
         quickReplies: ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion'],
       };
-
       setState(prev => ({
         ...prev,
         participantName: cleanName,
         phase: 'chat',
-        messages: [...prev.messages, userMsg, welcomeMsg],
+        messages: [...prev.messages, welcomeMsg],
         isTyping: false,
       }));
 
