@@ -78,9 +78,8 @@ if (typeof window !== 'undefined') {
 // ─── Duplicate detection ──────────────────────────────────────────────────────
 function isSimilarIssue(existing: Issue, newCategory: IssueCategory, newLocation: string, eventId?: string): boolean {
   if (existing.eventId !== eventId) return false;
-  const safeExistingLoc = existing.location || 'Unknown';
-  const locationMatch = safeExistingLoc.toLowerCase() === newLocation.toLowerCase()
-    || newLocation === 'Unknown' || safeExistingLoc === 'Unknown';
+  const locationMatch = existing.location.toLowerCase() === newLocation.toLowerCase()
+    || newLocation === 'Unknown' || existing.location === 'Unknown';
   return existing.category === newCategory && locationMatch && existing.status !== 'resolved';
 }
 
@@ -98,12 +97,12 @@ export async function createOrMergeIssue(
     // Firebase path
     const issuesRef = collection(db, 'issues');
     const q = query(issuesRef,
-      where('category', '==', category)
+      where('category', '==', category),
+      where('status', 'in', ['open', 'in_progress'])
     );
     const snapshot = await getDocs(q);
     const existing = snapshot.docs.find(d => {
       const data = d.data() as Issue;
-      if (data.status !== 'open' && data.status !== 'in_progress') return false;
       return isSimilarIssue(data, category, location, eventId);
     });
 
@@ -139,7 +138,7 @@ export async function createOrMergeIssue(
       recommendedAction: issueData.recommendedAction || '',
       rootCause: issueData.rootCause || '',
       followupSent: false,
-      rating: issueData.rating,
+      ...(issueData.rating !== undefined && { rating: issueData.rating }),
     };
 
     const docRef = await addDoc(issuesRef, {
@@ -201,7 +200,7 @@ export async function createOrMergeIssue(
     recommendedAction: issueData.recommendedAction || 'Investigate and address the reported issue',
     rootCause: issueData.rootCause || 'Participant-reported problem',
     followupSent: false,
-    rating: issueData.rating,
+    ...(issueData.rating !== undefined && { rating: issueData.rating }),
   };
 
   memoryIssues.push(newIssue);
@@ -401,59 +400,6 @@ export async function syncParticipantByEmail(email: string, name: string): Promi
     localStorage.setItem('eventmind_participants_by_email', JSON.stringify(localParticipants));
     return newSessionId;
   }
-}
-
-// ─── Save & load chat messages by session (Gmail-linked, cross-device) ────────
-export async function saveChatMessages(
-  sessionId: string,
-  messages: Array<{ role: string; content: string; timestamp: string }>
-): Promise<void> {
-  if (isFirebaseConfigured() && db) {
-    try {
-      const ref = collection(db, 'chatSessions');
-      const q = query(ref, where('sessionId', '==', sessionId));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        await updateDoc(snapshot.docs[0].ref, {
-          messages,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        await addDoc(ref, {
-          sessionId,
-          messages,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-    } catch (err) {
-      console.error('Error saving chat messages:', err);
-    }
-    return;
-  }
-  // Fallback: localStorage
-  localStorage.setItem(`eventmind_chat_${sessionId}`, JSON.stringify(messages));
-}
-
-export async function loadChatMessages(
-  sessionId: string
-): Promise<Array<{ role: string; content: string; timestamp: string }> | null> {
-  if (isFirebaseConfigured() && db) {
-    try {
-      const ref = collection(db, 'chatSessions');
-      const q = query(ref, where('sessionId', '==', sessionId));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        return snapshot.docs[0].data().messages || null;
-      }
-    } catch (err) {
-      console.error('Error loading chat messages:', err);
-    }
-    return null;
-  }
-  // Fallback: localStorage
-  const saved = localStorage.getItem(`eventmind_chat_${sessionId}`);
-  return saved ? JSON.parse(saved) : null;
 }
 
 // ─── Seed demo data ───────────────────────────────────────────────────────────
