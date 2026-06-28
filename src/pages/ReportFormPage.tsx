@@ -47,14 +47,14 @@ function RadioOption({ name, value, label, selected, onChange }: {
   name: string; value: string; label: string; selected: boolean; onChange: () => void;
 }) {
   return (
-    <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group">
+    <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer transition-colors group">
       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-        selected ? 'border-purple-600 bg-purple-600' : 'border-gray-400 group-hover:border-purple-400'
+        selected ? 'border-black bg-black dark:border-zinc-500 dark:bg-zinc-500' : 'border-gray-400 group-hover:border-gray-600 dark:group-hover:border-zinc-400'
       }`}>
         {selected && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
       <input type="radio" name={name} value={value} checked={selected} onChange={onChange} className="sr-only" />
-      <span className={`text-sm ${selected ? 'text-purple-700 font-medium' : 'text-gray-700'}`}>{label}</span>
+      <span className={`text-sm ${selected ? 'text-black dark:text-zinc-200 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>{label}</span>
     </label>
   );
 }
@@ -64,9 +64,9 @@ function CheckboxOption({ value, label, selected, onChange }: {
   value: string; label: string; selected: boolean; onChange: () => void;
 }) {
   return (
-    <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group">
+    <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer transition-colors group">
       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-        selected ? 'border-purple-600 bg-purple-600' : 'border-gray-400 group-hover:border-purple-400'
+        selected ? 'border-black bg-black dark:border-zinc-500 dark:bg-zinc-500' : 'border-gray-400 group-hover:border-gray-600 dark:group-hover:border-zinc-400'
       }`}>
         {selected && (
           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -74,7 +74,7 @@ function CheckboxOption({ value, label, selected, onChange }: {
           </svg>
         )}
       </div>
-      <span className={`text-sm ${selected ? 'text-purple-700 font-medium' : 'text-gray-700'}`}>{label}</span>
+      <span className={`text-sm ${selected ? 'text-black dark:text-zinc-200 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>{label}</span>
     </label>
   );
 }
@@ -82,7 +82,7 @@ function CheckboxOption({ value, label, selected, onChange }: {
 // ─── Form Section Card ────────────────────────────────────────────────────────
 function FormCard({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${accent ? 'border-t-4 border-t-purple-600 border-gray-200' : 'border-gray-200'} overflow-hidden`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border ${accent ? 'border-t-4 border-t-black dark:border-t-zinc-700 border-gray-200 dark:border-gray-800' : 'border-gray-200 dark:border-gray-800'} overflow-hidden`}>
       <div className="p-6">{children}</div>
     </div>
   );
@@ -182,19 +182,19 @@ export default function ReportFormPage() {
   // ── Submitted ──
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[#f0ebf8] flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-10 max-w-md w-full">
-          <div className="w-16 h-16 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-5 mx-auto">
+      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-10 max-w-md w-full">
+          <div className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-900 dark:bg-zinc-850 dark:text-zinc-200 flex items-center justify-center mb-5 mx-auto">
             <CheckCircle2 className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-normal text-gray-800 mb-3">Response recorded</h2>
-          <p className="text-gray-500 mb-6 text-sm leading-relaxed">
+          <h2 className="text-2xl font-normal text-gray-800 dark:text-gray-100 mb-3">Response recorded</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm leading-relaxed">
             Your feedback has been submitted to the organizing team. Thank you for helping us improve the event experience!
           </p>
           <button
             type="button"
             onClick={handleResetForm}
-            className="inline-block px-6 py-2.5 bg-purple-600 text-white rounded-md font-medium text-sm hover:bg-purple-700 transition-colors focus:outline-none"
+            className="inline-block px-6 py-2.5 bg-black text-white dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md font-medium text-sm hover:bg-neutral-800 transition-colors focus:outline-none"
           >
             Submit another response
           </button>
@@ -217,31 +217,31 @@ export default function ReportFormPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f0ebf8] py-6 px-4 font-[sans-serif]">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 py-6 px-4 font-[sans-serif]">
       <div className="max-w-2xl mx-auto space-y-4">
 
         {/* ── Header Banner ── */}
-        <div className="bg-white rounded-lg shadow-sm border-t-8 border-t-purple-600 border-gray-200 overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-3xl font-normal text-gray-800 mb-2">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border-t-8 border-t-black dark:border-t-zinc-700 border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+            <h1 className="text-3xl font-normal text-gray-800 dark:text-gray-100 mb-2">
               {event ? `${event.name} — Feedback Form` : 'Event Feedback Form'}
             </h1>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
               Help us improve your event experience by sharing your honest feedback.
               All responses are anonymous and will be reviewed by the organizing team.
             </p>
             {prefilledLocation && (
-              <div className="mt-3 inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full border border-purple-200">
+              <div className="mt-3 inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-200 text-xs font-medium px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700">
                 📍 Location: {prefilledLocation}
               </div>
             )}
           </div>
           {/* Progress bar */}
-          <div className="px-6 py-3 bg-gray-50 flex items-center gap-3">
+          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-850 flex items-center gap-3">
             <span className="text-xs text-gray-500">Page {page} of {TOTAL_PAGES}</span>
-            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-purple-600 rounded-full transition-all duration-500"
+                className="h-full bg-black dark:bg-zinc-500 rounded-full transition-all duration-500"
                 style={{ width: `${(page / TOTAL_PAGES) * 100}%` }}
               />
             </div>
@@ -271,7 +271,7 @@ export default function ReportFormPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="Your answer"
-                      className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors placeholder-gray-300"
+                      className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors placeholder-gray-300"
                     />
                   </div>
                   <div>
@@ -283,7 +283,7 @@ export default function ReportFormPage() {
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="example@email.com"
-                      className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors placeholder-gray-300"
+                      className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors placeholder-gray-300"
                     />
                   </div>
                   <div>
@@ -295,7 +295,7 @@ export default function ReportFormPage() {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+91 00000 00000"
-                      className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors placeholder-gray-300"
+                      className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors placeholder-gray-300"
                     />
                   </div>
                   <div>
@@ -307,7 +307,7 @@ export default function ReportFormPage() {
                       value={location}
                       onChange={e => setLocation(e.target.value)}
                       placeholder="e.g. Hall A, Cafeteria, Registration Desk"
-                      className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors placeholder-gray-300"
+                      className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors placeholder-gray-300"
                     />
                   </div>
                 </div>
@@ -384,13 +384,13 @@ export default function ReportFormPage() {
                   onChange={e => setLikes(e.target.value)}
                   placeholder="Your answer"
                   rows={3}
-                  className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors resize-none placeholder-gray-300"
+                  className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
 
               {/* What did you dislike */}
               <FormCard>
-                <h3 className="text-sm font-medium text-gray-800 mb-1">
+                <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">
                   What did you dislike or found disappointing?
                 </h3>
                 <p className="text-xs text-gray-400 mb-3">
@@ -401,7 +401,7 @@ export default function ReportFormPage() {
                   onChange={e => setDislikes(e.target.value)}
                   placeholder="Your answer"
                   rows={3}
-                  className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors resize-none placeholder-gray-300"
+                  className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
             </>
@@ -440,7 +440,7 @@ export default function ReportFormPage() {
                   onChange={e => setImprovements(e.target.value)}
                   placeholder="Share your suggestions..."
                   rows={4}
-                  className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors resize-none placeholder-gray-300"
+                  className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
 
@@ -482,7 +482,7 @@ export default function ReportFormPage() {
                   onChange={e => setAdditionalComments(e.target.value)}
                   placeholder="Your answer"
                   rows={4}
-                  className="w-full border-0 border-b-2 border-gray-300 focus:border-purple-600 outline-none py-2 text-sm text-gray-800 bg-transparent transition-colors resize-none placeholder-gray-300"
+                  className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
             </>
@@ -494,7 +494,7 @@ export default function ReportFormPage() {
               <button
                 type="button"
                 onClick={() => setPage(p => p - 1)}
-                className="px-6 py-2.5 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+                className="px-6 py-2.5 text-sm font-medium text-black hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 rounded-md transition-colors"
               >
                 Back
               </button>
@@ -511,7 +511,7 @@ export default function ReportFormPage() {
                   setPage(p => p + 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="flex items-center gap-2 px-7 py-2.5 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-7 py-2.5 bg-black text-white dark:bg-zinc-850 dark:hover:bg-zinc-750 rounded-md text-sm font-medium hover:bg-neutral-800 transition-colors shadow-sm"
               >
                 Next
                 <ChevronRight className="w-4 h-4" />
@@ -521,7 +521,7 @@ export default function ReportFormPage() {
                 type="submit"
                 disabled={loading}
                 onClick={handleSubmit}
-                className="flex items-center gap-2 px-7 py-2.5 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-60"
+                className="flex items-center gap-2 px-7 py-2.5 bg-black text-white dark:bg-zinc-850 dark:hover:bg-zinc-750 rounded-md text-sm font-medium hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-60"
               >
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -538,7 +538,7 @@ export default function ReportFormPage() {
                 onClick={() => {
                   setName(''); setEmail(''); setPhone(''); setOverallRating(0); setOverallExperience('');
                 }}
-                className="text-xs text-purple-600 hover:underline"
+                className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
               >
                 Clear form
               </button>
