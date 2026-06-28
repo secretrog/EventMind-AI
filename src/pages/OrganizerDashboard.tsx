@@ -900,6 +900,7 @@ export default function OrganizerDashboard() {
   const [allIssues, setAllIssues] = useState<Issue[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [allFeedbacks, setAllFeedbacks] = useState<Feedback[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     liveParticipants: 0, totalConversations: 0, openIssues: 0,
@@ -935,19 +936,40 @@ export default function OrganizerDashboard() {
     const unsub2 = subscribeToAlerts(setAlerts);
     const unsub3 = subscribeToEvents(setEvents);
     const unsub4 = subscribeToTrash(setTrash);
-    const unsub5 = subscribeToFeedbacks(setFeedbacks);
+    const unsub5 = subscribeToFeedbacks(setAllFeedbacks);
     return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
 
   }, []);
 
   // Filter issues by selected event and update stats
   useEffect(() => {
-    const filtered = selectedEventId === 'all' 
-      ? allIssues 
-      : allIssues.filter(i => i.eventId === selectedEventId);
-    setIssues(filtered);
-    setStats(getDashboardStats(filtered));
-  }, [allIssues, selectedEventId]);
+    if (events.length === 0) {
+      setIssues([]);
+      setFeedbacks([]);
+      const zeroStats = getDashboardStats([]);
+      zeroStats.liveParticipants = 0;
+      zeroStats.totalConversations = 0;
+      zeroStats.satisfactionScore = 0;
+      setStats(zeroStats);
+      return;
+    }
+
+    const validEventIds = new Set(events.map(e => e.id));
+    const validIssues = allIssues.filter(i => !i.eventId || validEventIds.has(i.eventId));
+    const validFeedbacks = allFeedbacks.filter(f => !f.eventId || validEventIds.has(f.eventId));
+
+    const filteredIssues = selectedEventId === 'all' 
+      ? validIssues 
+      : validIssues.filter(i => i.eventId === selectedEventId);
+      
+    const filteredFeedbacks = selectedEventId === 'all'
+      ? validFeedbacks
+      : validFeedbacks.filter(f => f.eventId === selectedEventId);
+
+    setIssues(filteredIssues);
+    setFeedbacks(filteredFeedbacks);
+    setStats(getDashboardStats(filteredIssues));
+  }, [allIssues, allFeedbacks, selectedEventId, events]);
 
   const dismissAlert = (id: string) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
