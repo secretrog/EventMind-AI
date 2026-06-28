@@ -159,6 +159,26 @@ export default function ReportFormPage() {
     setSubmitted(true);
   };
 
+  const handleResetForm = () => {
+    setName('');
+    setEmail('');
+    setPhone('');
+    setLocation(prefilledLocation);
+    setOverallRating(0);
+    setVenueRating(0);
+    setFoodRating(0);
+    setWifiRating(0);
+    setOverallExperience('');
+    setIssueCategory([]);
+    setLikes('');
+    setDislikes('');
+    setImprovements('');
+    setRecommendation('');
+    setAdditionalComments('');
+    setPage(1);
+    setSubmitted(false);
+  };
+
   // ── Submitted ──
   if (submitted) {
     return (
@@ -171,12 +191,13 @@ export default function ReportFormPage() {
           <p className="text-gray-500 mb-6 text-sm leading-relaxed">
             Your feedback has been submitted to the organizing team. Thank you for helping us improve the event experience!
           </p>
-          <a
-            href="/"
-            className="inline-block px-6 py-2.5 bg-purple-600 text-white rounded-md font-medium text-sm hover:bg-purple-700 transition-colors"
+          <button
+            type="button"
+            onClick={handleResetForm}
+            className="inline-block px-6 py-2.5 bg-purple-600 text-white rounded-md font-medium text-sm hover:bg-purple-700 transition-colors focus:outline-none"
           >
             Submit another response
-          </a>
+          </button>
         </div>
       </div>
     );
