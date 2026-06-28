@@ -511,7 +511,10 @@ export default function ReportFormPage() {
             {page > 1 ? (
               <button
                 type="button"
-                onClick={() => setPage(p => p - 1)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setPage(p => p - 1);
+                }}
                 className="px-6 py-2.5 text-sm font-medium text-black hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 rounded-md transition-colors"
               >
                 Back
@@ -521,7 +524,8 @@ export default function ReportFormPage() {
             {page < TOTAL_PAGES ? (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   if (page === 1 && overallRating === 0) {
                     alert('Please provide an overall rating before continuing.');
                     return;
@@ -553,7 +557,8 @@ export default function ReportFormPage() {
             <div className="text-center pb-6">
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   setName(''); setEmail(''); setPhone(''); setOverallRating(0); setOverallExperience('');
                 }}
                 className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
