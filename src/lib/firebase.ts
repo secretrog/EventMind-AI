@@ -38,6 +38,12 @@ export async function signInWithGoogle(): Promise<User | null> {
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
+    
+    // Force Google to always ask for the account/email
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+    
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: any) {
