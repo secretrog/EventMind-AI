@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 import type { Message, ChatState } from '../types';
 import { sendChatMessage, extractIssueFromConversation } from '../lib/gemini';
 import { createOrMergeIssue, registerParticipant, saveChatMessages } from '../services/issueService';
@@ -19,24 +20,17 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
   const sessionId = useRef(externalSessionId || getOrCreateSession());
   const eventIdRef = useRef(eventId);
 
-  // Keep refs in sync if props change
+  useEffect(() => { eventIdRef.current = eventId; }, [eventId]);
   useEffect(() => {
-    eventIdRef.current = eventId;
-  }, [eventId]);
-
-  useEffect(() => {
-    if (externalSessionId) {
-      sessionId.current = externalSessionId;
-    }
+    if (externalSessionId) sessionId.current = externalSessionId;
   }, [externalSessionId]);
 
-  // If name is pre-filled (from Google auth), start in chat phase directly
+  // If name is pre-filled (Google auth), skip name phase
   const initialPhase = prefilledName ? 'chat' : 'name';
-  const initialName = prefilledName || null;
 
   const [state, setState] = useState<ChatState>({
     sessionId: sessionId.current,
-    participantName: initialName,
+    participantName: prefilledName || null,
     messages: [],
     phase: initialPhase,
     currentIssueContext: null,
@@ -45,40 +39,42 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
 
   const historyRef = useRef<Array<{ role: 'user' | 'model'; parts: string }>>([]);
   const conversationBuffer = useRef<string>('');
-  const issueExtractTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackExtractTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const issueFiledRef = useRef<Set<string>>(new Set()); // track filed issues to avoid duplicates
 
-  // Send initial AI greeting — personalised if name already known
+  // ── Initial greeting ─────────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
-      let welcomeContent: string;
-      let quickReplies: string[] | undefined;
+      const isReturning = !!prefilledName;
+      const content = isReturning
+        ? `👋 Welcome back, **${prefilledName}**! Great to see you.\n\nHow's your experience at the event going so far?`
+        : "👋 Hi there! I'm **EventMind AI**, your event assistant.\n\nCould I know your name before we begin?";
 
-      if (prefilledName) {
-        // User signed in with Google — skip name collection
-        welcomeContent = `👋 Welcome back, **${prefilledName}**! Great to see you again.\n\nHow's your experience at the event going so far?`;
-        quickReplies = ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion'];
-        if (prefilledName) {
-          registerParticipant(sessionId.current, prefilledName);
-        }
-      } else {
-        welcomeContent = "👋 Hi there! I'm **EventMind AI**, your event experience assistant.\n\nBefore we begin — could I know your name?";
+      const quickReplies = isReturning
+        ? ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion']
+        : undefined;
+
+      if (isReturning) {
+        registerParticipant(sessionId.current, prefilledName!);
       }
 
-      const welcome: Message = {
-        id: uuidv4(),
-        role: 'ai',
-        content: welcomeContent,
-        timestamp: new Date(),
-        quickReplies,
-      };
-      setState(prev => ({ ...prev, messages: [welcome] }));
+      setState(prev => ({
+        ...prev,
+        messages: [{
+          id: uuidv4(),
+          role: 'ai',
+          content,
+          timestamp: new Date(),
+          quickReplies,
+        }],
+      }));
     }, 600);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-save messages to Firestore (debounced) when externalSessionId is present
+  // ── Auto-save chat to Firestore (debounced) ──────────────────────────────────
   useEffect(() => {
     if (!externalSessionId || state.messages.length === 0) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -91,11 +87,42 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
           timestamp: m.timestamp.toISOString(),
         }))
       );
-    }, 2000); // debounce 2s
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
+    }, 2000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [state.messages, externalSessionId]);
+
+  // ── File issue to management ─────────────────────────────────────────────────
+  const fileIssueToManagement = useCallback(async (
+    issueData: Parameters<typeof createOrMergeIssue>[0],
+    participantName: string
+  ) => {
+    // Dedup: use category+location as key
+    const key = `${issueData.category}-${issueData.location}`;
+    if (issueFiledRef.current.has(key)) return;
+    issueFiledRef.current.add(key);
+
+    try {
+      await createOrMergeIssue(issueData, sessionId.current, participantName, eventIdRef.current);
+
+      // 🔔 Show management-side notification toast
+      toast.success(
+        `📋 Issue reported to management: ${issueData.title || 'New issue'}`,
+        {
+          duration: 4000,
+          style: {
+            borderRadius: '14px',
+            background: '#0f172a',
+            color: '#e2e8f0',
+            border: '1px solid rgba(99,102,241,0.4)',
+            fontSize: '13px',
+          },
+          icon: '🚨',
+        }
+      );
+    } catch (err) {
+      console.error('Failed to file issue:', err);
+    }
+  }, []);
 
   const addMessage = useCallback((msg: Message) => {
     setState(prev => ({
@@ -105,10 +132,10 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
     }));
   }, []);
 
+  // ── Main sendMessage ─────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
-    // Add user message
     const userMsg: Message = {
       id: uuidv4(),
       role: 'user',
@@ -125,14 +152,13 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
     historyRef.current.push({ role: 'user', parts: text });
     conversationBuffer.current += `\nParticipant: ${text}`;
 
-    // Handle name phase
+    // ── Name phase ───────────────────────────────────────────────────────────
     if (state.phase === 'name' || !state.participantName) {
-      const name = text.trim().split(' ')[0];
-      const cleanName = name.charAt(0).toUpperCase() + name.slice(1);
+      const raw = text.trim().split(/\s+/)[0];
+      const cleanName = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 
       registerParticipant(sessionId.current, cleanName);
-
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1000));
 
       const welcomeMsg: Message = {
         id: uuidv4(),
@@ -141,6 +167,7 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
         timestamp: new Date(),
         quickReplies: ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion'],
       };
+
       setState(prev => ({
         ...prev,
         participantName: cleanName,
@@ -153,9 +180,14 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
       return;
     }
 
-    // Normal chat phase
+    // ── Chat phase — call Gemini ─────────────────────────────────────────────
     try {
-      const result = await sendChatMessage(text, historyRef.current, state.participantName);
+      const result = await sendChatMessage(
+        text,
+        historyRef.current,
+        state.participantName,
+        conversationBuffer.current
+      );
 
       const aiMsg: Message = {
         id: uuidv4(),
@@ -169,31 +201,38 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
       historyRef.current.push({ role: 'model', parts: result.response });
       conversationBuffer.current += `\nAI: ${result.response}`;
 
-      // Try issue extraction after enough context (debounced)
-      if (issueExtractTimer.current) clearTimeout(issueExtractTimer.current);
-      issueExtractTimer.current = setTimeout(async () => {
-        if (conversationBuffer.current.trim().length > 0) {
-          const issue = await extractIssueFromConversation(conversationBuffer.current);
-          if (issue && issue.category && issue.category !== 'appreciation' && issue.category !== 'suggestion') {
-            await createOrMergeIssue(issue, sessionId.current, state.participantName || 'Anonymous', eventIdRef.current);
-          }
+      // ── PRIMARY: Gemini signalled an issue directly ──────────────────────
+      if (result.issueData?.category &&
+          result.issueData.category !== 'appreciation' &&
+          result.issueData.category !== 'suggestion') {
+        await fileIssueToManagement(result.issueData, state.participantName || 'Anonymous');
+      } else if (result.issueData?.category === 'suggestion') {
+        // Suggestions also get filed (lower priority)
+        await fileIssueToManagement(result.issueData, state.participantName || 'Anonymous');
+      } else {
+        // ── FALLBACK: run extraction after 3+ exchanges with no signal ────
+        const exchangeCount = historyRef.current.filter(h => h.role === 'user').length;
+        if (exchangeCount >= 2) {
+          if (fallbackExtractTimer.current) clearTimeout(fallbackExtractTimer.current);
+          fallbackExtractTimer.current = setTimeout(async () => {
+            const issue = await extractIssueFromConversation(conversationBuffer.current);
+            if (issue?.category && issue.category !== 'appreciation') {
+              await fileIssueToManagement(issue, state.participantName || 'Anonymous');
+            }
+          }, 1500);
         }
-      }, 1000);
+      }
 
     } catch (err) {
       console.error('Chat error:', err);
-      const errMsg: Message = {
+      addMessage({
         id: uuidv4(),
         role: 'ai',
-        content: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.",
+        content: "I'm sorry, I'm having trouble right now. Please try again in a moment.",
         timestamp: new Date(),
-      };
-      addMessage(errMsg);
+      });
     }
-  }, [state.phase, state.participantName, addMessage]);
+  }, [state.phase, state.participantName, addMessage, fileIssueToManagement]);
 
-  return {
-    ...state,
-    sendMessage,
-  };
+  return { ...state, sendMessage };
 }
