@@ -857,12 +857,14 @@ export default function OrganizerDashboard() {
       setLoadingAuth(false);
     }
   }, []);
-
   const handleGoogleSignIn = async () => {
     setLoadingAuth(true);
     if (isFirebaseConfigured() && auth) {
       try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
         const result = await signInWithPopup(auth, provider);
         setUser(result.user);
       } catch (err: any) {
