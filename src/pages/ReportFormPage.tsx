@@ -116,7 +116,7 @@ export default function ReportFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const TOTAL_PAGES = 2;
+  const TOTAL_PAGES = 3;
 
   const toggleCategory = (val: string) => {
     setIssueCategory(prev =>
@@ -422,8 +422,70 @@ export default function ReportFormPage() {
                   className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
+            </>
+          )}
 
+          {/* ════════════ PAGE 3 — Issues & Improvements ════════════ */}
+          {page === 3 && (
+            <>
+              {/* Issue categories */}
+              <FormCard accent>
+                <h2 className="text-base font-medium text-gray-800 mb-1">Section 3: Issues & Improvements</h2>
+                <p className="text-sm text-gray-500 mb-4">Select all areas you faced issues with</p>
+                <div className="space-y-1">
+                  {issueOptions.map(opt => (
+                    <CheckboxOption
+                      key={opt.value}
+                      value={opt.value}
+                      label={opt.label}
+                      selected={issueCategory.includes(opt.value)}
+                      onChange={() => toggleCategory(opt.value)}
+                    />
+                  ))}
+                </div>
+              </FormCard>
 
+              {/* Improvements */}
+              <FormCard>
+                <h3 className="text-sm font-medium text-gray-800 mb-1">
+                  What improvements would you suggest?
+                </h3>
+                <p className="text-xs text-gray-400 mb-3">
+                  e.g. More power outlets in Hall A, better signage, additional Wi-Fi routers near registration...
+                </p>
+                <textarea
+                  value={improvements}
+                  onChange={e => setImprovements(e.target.value)}
+                  placeholder="Share your suggestions..."
+                  rows={4}
+                  className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
+                />
+              </FormCard>
+
+              {/* Recommend */}
+              <FormCard>
+                <h3 className="text-sm font-medium text-gray-800 mb-4">
+                  Would you recommend this event to others?
+                </h3>
+                <div className="space-y-1">
+                  {[
+                    { v: 'definitely', l: '✅ Definitely yes!' },
+                    { v: 'probably', l: '👍 Probably yes' },
+                    { v: 'not-sure', l: '🤔 Not sure' },
+                    { v: 'probably-not', l: '👎 Probably not' },
+                    { v: 'definitely-not', l: '❌ Definitely not' },
+                  ].map(opt => (
+                    <RadioOption
+                      key={opt.v}
+                      name="recommendation"
+                      value={opt.v}
+                      label={opt.l}
+                      selected={recommendation === opt.v}
+                      onChange={() => setRecommendation(opt.v)}
+                    />
+                  ))}
+                </div>
+              </FormCard>
 
               {/* Additional comments */}
               <FormCard>
