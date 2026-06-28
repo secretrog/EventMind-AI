@@ -116,7 +116,7 @@ export default function ReportFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const TOTAL_PAGES = 3;
+  const TOTAL_PAGES = 2;
 
   const toggleCategory = (val: string) => {
     setIssueCategory(prev =>
@@ -273,7 +273,7 @@ export default function ReportFormPage() {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm text-gray-700 mb-1.5">
-                      Your Name <span className="text-gray-400">(Optional)</span>
+                      Your Name
                     </label>
                     <input
                       type="text"
@@ -285,7 +285,7 @@ export default function ReportFormPage() {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1.5">
-                      Email Address <span className="text-gray-400">(Optional)</span>
+                      Email Address
                     </label>
                     <input
                       type="email"
@@ -297,7 +297,7 @@ export default function ReportFormPage() {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1.5">
-                      Phone Number <span className="text-gray-400">(Optional)</span>
+                      Phone Number
                     </label>
                     <input
                       type="tel"
@@ -413,15 +413,10 @@ export default function ReportFormPage() {
                   className="w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-zinc-500 outline-none py-2 text-sm text-gray-800 dark:text-gray-100 bg-transparent transition-colors resize-none placeholder-gray-300"
                 />
               </FormCard>
-            </>
-          )}
 
-          {/* ════════════ PAGE 3 — Issues & Improvements ════════════ */}
-          {page === 3 && (
-            <>
               {/* Issue categories */}
               <FormCard accent>
-                <h2 className="text-base font-medium text-gray-800 mb-1">Section 3: Issues & Improvements</h2>
+                <h2 className="text-base font-medium text-gray-800 mb-1">Issues & Improvements</h2>
                 <p className="text-sm text-gray-500 mb-4">Select all areas you faced issues with</p>
                 <div className="space-y-1">
                   {issueOptions.map(opt => (
