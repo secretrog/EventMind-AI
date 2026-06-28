@@ -124,26 +124,20 @@ function getMockResponse(
     return { response: "Happy to pass that along! What's your suggestion?" };
   }
 
-  // WiFi — ask location
-  if ((msg.includes('wifi') || msg.includes('wi-fi') || msg.includes('internet') || msg.includes('network')) && !buf.includes('hall')) {
-    return { response: "Sorry about that! Where exactly are you — which hall or area?", quickReplies: ['Hall A', 'Hall B', 'Hall C', 'Registration area'] };
-  }
-
-  // WiFi + location → file issue
-  if ((buf.includes('wifi') || buf.includes('internet')) && (msg.includes('hall') || msg.includes('area') || msg.includes('registration') || msg.includes('lobby'))) {
-    const location = msg.includes('hall a') ? 'Hall A' : msg.includes('hall b') ? 'Hall B' : msg.includes('hall c') ? 'Hall C' : 'Registration Area';
+  // WiFi
+  if (msg.includes('wifi') || msg.includes('wi-fi') || msg.includes('internet') || msg.includes('network')) {
     return {
       response: `Thank you for your feedback`,
       quickReplies: ['Yes, another issue', 'No, all good!'],
       issueData: {
-        title: `Wi-Fi Connectivity Issue in ${location}`,
-        description: `Participant reported Wi-Fi connectivity problems in ${location}`,
+        title: `Wi-Fi Connectivity Issue`,
+        description: `Participant reported Wi-Fi connectivity problems`,
         category: 'wifi',
-        location,
+        location: 'Unknown',
         priority: 'high',
         sentiment: 'negative',
-        keywords: ['wifi', 'connectivity', location.toLowerCase()],
-        recommendedAction: `Check and restart router in ${location}`,
+        keywords: ['wifi', 'connectivity'],
+        recommendedAction: `Check and restart router`,
         rootCause: 'Router overload or configuration issue',
       },
     };
@@ -151,24 +145,21 @@ function getMockResponse(
 
   // Food
   if (msg.includes('food') || msg.includes('eat') || msg.includes('drink') || msg.includes('snack') || msg.includes('coffee')) {
-    if (buf.includes('running out') || buf.includes('no food') || buf.includes('empty')) {
-      return {
-        response: "Thank you for your feedback",
-        quickReplies: ['Yes, another issue', 'No, all good!'],
-        issueData: {
-          title: 'Food/Refreshment Running Out',
-          description: 'Participant reported food and refreshments are running out',
-          category: 'food',
-          location: 'Cafeteria / Refreshment Area',
-          priority: 'high',
-          sentiment: 'negative',
-          keywords: ['food', 'refreshments', 'running out'],
-          recommendedAction: 'Restock refreshments immediately',
-          rootCause: 'Underestimated participant count for catering',
-        },
-      };
-    }
-    return { response: "What's the issue — running out, quality, or long wait?", quickReplies: ['Running out', 'Quality issue', 'Long wait'] };
+    return {
+      response: "Thank you for your feedback",
+      quickReplies: ['Yes, another issue', 'No, all good!'],
+      issueData: {
+        title: 'Food/Refreshment Issue',
+        description: 'Participant reported an issue with food and refreshments',
+        category: 'food',
+        location: 'Cafeteria / Refreshment Area',
+        priority: 'high',
+        sentiment: 'negative',
+        keywords: ['food', 'refreshments'],
+        recommendedAction: 'Check on catering and refreshments',
+        rootCause: 'Participant reported food concern',
+      },
+    };
   }
 
   // Power/charging
@@ -194,6 +185,16 @@ function getMockResponse(
   if (msg.includes('great') || msg.includes('awesome') || msg.includes('amazing') || msg.includes('love') ||
       msg.includes('thank') || msg.includes('good job') || msg === '😊 going great!') {
     return { response: "That's wonderful to hear! 🌟 I'll pass it on to the team. Is there anything else?", quickReplies: ['Yes, something else', "Nope, I'm good!"] };
+  }
+
+  // Default: try to extract a general issue
+  const issueData = extractIssueMock(msg);
+  if (issueData) {
+    return {
+      response: "Thank you for your feedback",
+      quickReplies: ['Yes, another issue', "No, I'm good!"],
+      issueData
+    };
   }
 
   return { response: "Thanks for sharing! Is there anything else I can help with?", quickReplies: ['Yes, another issue', "No, I'm good!"] };
