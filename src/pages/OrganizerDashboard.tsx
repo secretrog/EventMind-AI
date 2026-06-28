@@ -8,6 +8,7 @@ import {
   Bot, Send, Sparkles, Bell, X, Activity, Star,
   ArrowUpRight, Shield, CalendarPlus, Calendar, QrCode, Plus,
   ExternalLink, ChevronRight, Building2, ToggleLeft, ToggleRight, Trash2, LogOut,
+  RotateCcw, AlertCircle, PackageOpen,
 } from 'lucide-react';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
@@ -15,7 +16,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { subscribeToIssues, subscribeToAlerts, updateIssueStatus, getDashboardStats, seedDemoData } from '../services/issueService';
-import { createEvent, subscribeToEvents, deleteEvent } from '../services/eventService';
+import { createEvent, subscribeToEvents, deleteEvent, restoreEvent, permanentlyDeleteEvent, emptyTrash, subscribeToTrash, type TrashedEvent } from '../services/eventService';
 import type { Issue, Alert, DashboardStats, Priority } from '../types';
 import type { Event } from '../types';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
@@ -307,6 +308,210 @@ function IssueRow({ issue, onUpdate }: { issue: Issue; onUpdate: () => void }) {
         </div>
       </td>
     </tr>
+  );
+}
+
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+function DeleteConfirmModal({
+  event,
+  issueCount,
+  onConfirm,
+  onCancel,
+}: {
+  event: Event;
+  issueCount: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 400));
+    onConfirm();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.6)' }}>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up border border-red-100 dark:border-red-900/30">
+        {/* Red top bar */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-red-500 to-rose-500" />
+
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white text-lg leading-tight">Delete "{event.name}"?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">This will move the event to the recycle bin.</p>
+            </div>
+          </div>
+
+          {/* Warning list */}
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-4 border border-red-100 dark:border-red-800 mb-5">
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-2 uppercase tracking-wide">The following will be permanently wiped:</p>
+            <ul className="space-y-1.5">
+              {[
+                `${issueCount} issue${issueCount !== 1 ? 's' : ''} and all reports`,
+                'All participant data for this event',
+                'All alerts linked to this event',
+                'Dashboard stats will reset to reflect remaining events',
+              ].map(item => (
+                <li key={item} className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-5 text-center">
+            💡 You can recover this event from the <strong>Recycle Bin</strong> within your session.
+          </p>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              Move to Bin
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Trash / Recycle Bin Panel ────────────────────────────────────────────────
+function TrashPanel({
+  trash,
+  onRestore,
+  onPermanentDelete,
+  onEmptyAll,
+  onClose,
+}: {
+  trash: TrashedEvent[];
+  onRestore: (id: string) => void;
+  onPermanentDelete: (id: string) => void;
+  onEmptyAll: () => void;
+  onClose: () => void;
+}) {
+  const [confirmPerm, setConfirmPerm] = useState<string | null>(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.55)' }}>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Trash2 className="w-4.5 h-4.5 text-gray-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">Recycle Bin</h3>
+              <p className="text-xs text-gray-400">{trash.length} deleted event{trash.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {trash.length > 0 && (
+              <button
+                onClick={onEmptyAll}
+                className="text-xs text-red-500 hover:text-red-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Empty All
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="max-h-[60vh] overflow-y-auto">
+          {trash.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+              <PackageOpen className="w-12 h-12 opacity-30" />
+              <p className="text-sm font-medium">Recycle bin is empty</p>
+              <p className="text-xs">Deleted events appear here</p>
+            </div>
+          ) : (
+            <div className="p-4 space-y-3">
+              {trash.map(({ event, deletedAt, issueCount }) => (
+                <div key={event.id} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700 group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm truncate">{event.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {issueCount} issue{issueCount !== 1 ? 's' : ''} · Deleted {deletedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} at {deletedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {event.venue && <p className="text-xs text-gray-400 truncate">{event.venue}</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Recover */}
+                    <button
+                      onClick={() => onRestore(event.id)}
+                      title="Recover event"
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg hover:bg-emerald-100 transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Recover
+                    </button>
+                    {/* Permanent delete */}
+                    {confirmPerm === event.id ? (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { onPermanentDelete(event.id); setConfirmPerm(null); }}
+                          className="px-2 py-1.5 text-xs font-bold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          Delete Forever
+                        </button>
+                        <button
+                          onClick={() => setConfirmPerm(null)}
+                          className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmPerm(event.id)}
+                        title="Delete permanently"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+          <p className="text-xs text-gray-400 text-center">
+            💡 Recovered events will reappear in your Events page. Deleted data cannot be recovered.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -708,6 +913,11 @@ export default function OrganizerDashboard() {
   const [qrEvent, setQrEvent] = useState<Event | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string>('all');
 
+  // Trash / delete state
+  const [trash, setTrash] = useState<TrashedEvent[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<Event | null>(null);
+  const [showTrashPanel, setShowTrashPanel] = useState(false);
+
   // Dark mode
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -720,7 +930,9 @@ export default function OrganizerDashboard() {
     });
     const unsub2 = subscribeToAlerts(setAlerts);
     const unsub3 = subscribeToEvents(setEvents);
-    return () => { unsub1(); unsub2(); unsub3(); };
+    const unsub4 = subscribeToTrash(setTrash);
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+
   }, []);
 
   // Filter issues by selected event and update stats
@@ -971,6 +1183,26 @@ export default function OrganizerDashboard() {
       {qrEvent && (
         <QRModal event={qrEvent} onClose={() => setQrEvent(null)} />
       )}
+      {deleteConfirm && (
+        <DeleteConfirmModal
+          event={deleteConfirm}
+          issueCount={allIssues.filter(i => i.eventId === deleteConfirm.id).length}
+          onConfirm={() => {
+            deleteEvent(deleteConfirm.id, allIssues.filter(i => i.eventId === deleteConfirm.id).length);
+            setDeleteConfirm(null);
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+      {showTrashPanel && (
+        <TrashPanel
+          trash={trash}
+          onRestore={(id) => restoreEvent(id)}
+          onPermanentDelete={(id) => permanentlyDeleteEvent(id)}
+          onEmptyAll={() => emptyTrash()}
+          onClose={() => setShowTrashPanel(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <aside className="w-64 glass border-r border-gray-100 dark:border-gray-800 flex flex-col flex-shrink-0">
@@ -1004,7 +1236,7 @@ export default function OrganizerDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-1">
           <a
             href={events.length > 0 ? `/chat?eventId=${selectedEventId !== 'all' ? selectedEventId : events[0].id}` : "/chat"}
             className="nav-item flex items-center gap-3 text-sm w-full"
@@ -1021,6 +1253,19 @@ export default function OrganizerDashboard() {
             <Activity className="w-4 h-4" />
             QR Display
           </a>
+          {/* Recycle Bin button */}
+          <button
+            onClick={() => setShowTrashPanel(true)}
+            className="nav-item w-full flex items-center gap-3 text-sm"
+          >
+            <Trash2 className="w-4 h-4" />
+            Recycle Bin
+            {trash.length > 0 && (
+              <span className="ml-auto text-xs bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full font-semibold">
+                {trash.length}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-800">
@@ -1036,31 +1281,33 @@ export default function OrganizerDashboard() {
         </div>
 
         {user && (
-          <div className="p-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+            {/* Profile card — shows name and email prominently */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700">
               <img
                 src={user.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=faces'}
                 alt={user.displayName || 'User'}
-                className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-800"
+                className="w-10 h-10 rounded-xl border-2 border-white dark:border-gray-700 shadow-sm flex-shrink-0 object-cover"
               />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate leading-tight">
                   {user.displayName || 'Organizer'}
                 </p>
-                <p className="text-[10px] text-gray-400 truncate">
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
                   {user.email || ''}
                 </p>
               </div>
+              <button
+                onClick={handleSignOut}
+                className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="text-gray-400 hover:text-red-500 transition-colors p-1"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
         )}
+
       </aside>
 
       {/* Main content */}
@@ -1267,7 +1514,8 @@ export default function OrganizerDashboard() {
                         setSelectedEventId(event.id);
                         setActivePage('issues');
                       }}
-                      onDelete={() => deleteEvent(event.id)}
+                      onDelete={() => setDeleteConfirm(event)}
+
                     />
                   ))}
                 </div>
