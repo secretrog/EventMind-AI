@@ -4,7 +4,7 @@ import type { Issue, IssueCategory, Priority } from '../types';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const isGeminiConfigured = () => {
-  return !!(GEMINI_API_KEY && GEMINI_API_KEY !== 'your_gemini_api_key_here');
+  return false; // Force mock mode for stable submission
 };
 
 let genAI: GoogleGenerativeAI | null = null;
