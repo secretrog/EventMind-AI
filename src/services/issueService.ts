@@ -78,8 +78,9 @@ if (typeof window !== 'undefined') {
 // ─── Duplicate detection ──────────────────────────────────────────────────────
 function isSimilarIssue(existing: Issue, newCategory: IssueCategory, newLocation: string, eventId?: string): boolean {
   if (existing.eventId !== eventId) return false;
-  const locationMatch = existing.location.toLowerCase() === newLocation.toLowerCase()
-    || newLocation === 'Unknown' || existing.location === 'Unknown';
+  const safeExistingLoc = existing.location || 'Unknown';
+  const locationMatch = safeExistingLoc.toLowerCase() === newLocation.toLowerCase()
+    || newLocation === 'Unknown' || safeExistingLoc === 'Unknown';
   return existing.category === newCategory && locationMatch && existing.status !== 'resolved';
 }
 
