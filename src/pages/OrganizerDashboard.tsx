@@ -930,10 +930,10 @@ export default function OrganizerDashboard() {
 
   // Scope events to user email
   useEffect(() => {
-    if (!loading) {
+    if (!loadingAuth) {
       initializeEventStore(user?.email || null);
     }
-  }, [user?.email, loading]);
+  }, [user?.email, loadingAuth]);
 
   // Subscribe to live data
   useEffect(() => {
