@@ -624,7 +624,7 @@ export default function OrganizerDashboard() {
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    const correctCode = import.meta.env.VITE_DASHBOARD_CODE || '2026';
+    const correctCode = import.meta.env.VITE_DASHBOARD_CODE || 'hack-you';
     if (passcode === correctCode) {
       sessionStorage.setItem('eventmind_dashboard_unlocked', 'true');
       setIsUnlocked(true);
