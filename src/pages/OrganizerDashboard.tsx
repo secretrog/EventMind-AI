@@ -950,17 +950,6 @@ export default function OrganizerDashboard() {
 
   // Filter issues by selected event and update stats
   useEffect(() => {
-    if (events.length === 0) {
-      setIssues([]);
-      setFeedbacks([]);
-      const zeroStats = getDashboardStats([]);
-      zeroStats.liveParticipants = 0;
-      zeroStats.totalConversations = 0;
-      zeroStats.satisfactionScore = 0;
-      setStats(zeroStats);
-      return;
-    }
-
     const validIssues = allIssues;
     const validFeedbacks = allFeedbacks;
 
