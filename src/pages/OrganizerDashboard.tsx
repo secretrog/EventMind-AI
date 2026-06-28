@@ -961,9 +961,8 @@ export default function OrganizerDashboard() {
       return;
     }
 
-    const validEventIds = new Set(events.map(e => e.id));
-    const validIssues = allIssues.filter(i => !i.eventId || validEventIds.has(i.eventId));
-    const validFeedbacks = allFeedbacks.filter(f => !f.eventId || validEventIds.has(f.eventId));
+    const validIssues = allIssues;
+    const validFeedbacks = allFeedbacks;
 
     const filteredIssues = selectedEventId === 'all' 
       ? validIssues 
