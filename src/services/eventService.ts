@@ -1,8 +1,19 @@
 import type { Event } from '../types';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'eventmind_events';
-const TRASH_KEY = 'eventmind_events_trash';
+let STORAGE_KEY = 'eventmind_events';
+let TRASH_KEY = 'eventmind_events_trash';
+
+export function initializeEventStore(email: string | null) {
+  STORAGE_KEY = email ? `eventmind_events_${email}` : 'eventmind_events_demo';
+  TRASH_KEY = email ? `eventmind_events_trash_${email}` : 'eventmind_events_trash_demo';
+  
+  memoryEvents = loadEvents();
+  memoryTrash = loadTrash();
+  
+  eventListeners.forEach(cb => cb([...memoryEvents]));
+  trashListeners.forEach(cb => cb([...memoryTrash]));
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface TrashedEvent {

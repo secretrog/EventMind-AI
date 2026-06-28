@@ -76,7 +76,8 @@ function parseIssueReport(rawText: string): ParsedIssueSignal {
 
   if (markerIdx !== -1) {
     visibleText = rawText.slice(0, markerIdx).trim();
-    const jsonStr = rawText.slice(markerIdx + issueMarker.length).trim();
+    let jsonStr = rawText.slice(markerIdx + issueMarker.length).trim();
+    jsonStr = jsonStr.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
     try {
       issueData = JSON.parse(jsonStr) as Partial<Issue>;
     } catch {

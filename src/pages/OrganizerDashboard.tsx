@@ -17,7 +17,7 @@ import {
 import { Doughnut, Pie, Line } from 'react-chartjs-2';
 import { subscribeToIssues, subscribeToAlerts, updateIssueStatus, getDashboardStats, seedDemoData } from '../services/issueService';
 import { subscribeToFeedbacks } from '../services/feedbackService';
-import { createEvent, subscribeToEvents, deleteEvent, restoreEvent, permanentlyDeleteEvent, emptyTrash, subscribeToTrash, type TrashedEvent } from '../services/eventService';
+import { initializeEventStore, createEvent, subscribeToEvents, deleteEvent, restoreEvent, permanentlyDeleteEvent, emptyTrash, subscribeToTrash, type TrashedEvent } from '../services/eventService';
 import type { Issue, Alert, DashboardStats, Priority, Feedback } from '../types';
 import type { Event } from '../types';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
@@ -927,6 +927,13 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  // Scope events to user email
+  useEffect(() => {
+    if (!loading) {
+      initializeEventStore(user?.email || null);
+    }
+  }, [user?.email, loading]);
 
   // Subscribe to live data
   useEffect(() => {
