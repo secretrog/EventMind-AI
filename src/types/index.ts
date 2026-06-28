@@ -76,6 +76,27 @@ export interface Alert {
   suggestedAction: string;
 }
 
+export interface Feedback {
+  id: string;
+  eventId?: string;
+  participantName: string;
+  participantSessionId: string;
+  location: string;
+  overallRating: number;
+  overallExperience: string;
+  venueRating?: number;
+  foodRating?: number;
+  wifiRating?: number;
+  likes?: string;
+  dislikes?: string;
+  improvements?: string;
+  recommendation?: string;
+  additionalComments?: string;
+  issueCategory: string[];
+  sentiment: Sentiment;
+  submittedAt: Date;
+}
+
 export interface DashboardStats {
   liveParticipants: number;
   totalConversations: number;

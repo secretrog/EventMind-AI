@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Star, CheckCircle2, ChevronRight } from 'lucide-react';
-import { createOrMergeIssue } from '../services/issueService';
+import { syncParticipantByEmail } from '../services/issueService';
+import { submitFeedback } from '../services/feedbackService';
 import { getEventById } from '../services/eventService';
 import { v4 as uuidv4 } from 'uuid';
 import type { IssueCategory } from '../types';
@@ -126,9 +127,15 @@ export default function ReportFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    if (!sessionStorage.getItem('eventmind_session')) {
+
+    let activeSessionId = sessionId;
+    if (email.trim()) {
+      activeSessionId = await syncParticipantByEmail(email, name || 'Anonymous');
+      sessionStorage.setItem('eventmind_session', activeSessionId);
+    } else if (!sessionStorage.getItem('eventmind_session')) {
       sessionStorage.setItem('eventmind_session', sessionId);
     }
+
     const participantName = name.trim() || 'Anonymous';
     const fullDescription = [
       likes && `✅ Liked: ${likes}`,
@@ -139,22 +146,24 @@ export default function ReportFormPage() {
 
     const primaryCategory = issueCategory[0] as IssueCategory || 'other';
 
-    await createOrMergeIssue(
-      {
-        title: primaryCategory !== 'other'
-          ? `${primaryCategory.charAt(0).toUpperCase() + primaryCategory.slice(1)} Feedback`
-          : 'General Event Feedback',
-        description: fullDescription || 'General event feedback submitted.',
-        category: primaryCategory,
-        location: location || 'Unknown',
-        priority: overallRating <= 2 ? 'high' : overallRating === 3 ? 'medium' : 'low',
-        sentiment: overallRating >= 4 ? 'positive' : overallRating === 3 ? 'neutral' : 'negative',
-        rating: overallRating > 0 ? overallRating : undefined,
-      },
-      sessionId,
+    await submitFeedback({
+      eventId,
       participantName,
-      eventId
-    );
+      participantSessionId: activeSessionId,
+      location: location || 'Unknown',
+      overallRating,
+      overallExperience,
+      venueRating: venueRating > 0 ? venueRating : undefined,
+      foodRating: foodRating > 0 ? foodRating : undefined,
+      wifiRating: wifiRating > 0 ? wifiRating : undefined,
+      likes,
+      dislikes,
+      improvements,
+      recommendation,
+      additionalComments,
+      issueCategory,
+      sentiment: overallRating >= 4 ? 'positive' : overallRating === 3 ? 'neutral' : 'negative',
+    });
     setLoading(false);
     setSubmitted(true);
   };

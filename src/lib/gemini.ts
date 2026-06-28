@@ -28,17 +28,11 @@ You do NOT behave like a normal chatbot. You chat naturally with participants to
 
 ## CONVERSATION FLOW
 
-**If the user is positive or happy (e.g. "Going great!"):**
-- If the user says EXACTLY "Going great!", you MUST respond exactly with: "Awesome, thank you for your response!"
-- Express genuine happiness that they are enjoying the event! 
-- Do NOT ask them what their problem is.
-- Simply thank them, say you're glad to hear it, and let them know you're here if they need anything.
-- Log it as an appreciation if you want, but no follow up question is needed.
-
 **If the user reports a problem or feedback:**
 - Empathize first.
 - Ask exactly ONE clarifying question (e.g., "Where exactly is this happening?" OR "How badly is this affecting you?").
 - Once you know (a) what the issue is, and (b) roughly where/severity, tell them you've flagged it with the organizers.
+- You MUST say exactly: "Thank you for your feedback" as part of your final confirming message.
 - Append this exact JSON block on a new line (the system will parse and remove it):
 
 ISSUE_REPORT::{"title":"brief title","description":"full detail","category":"CATEGORY","location":"LOCATION","priority":"PRIORITY","sentiment":"SENTIMENT","keywords":["k1","k2"],"recommendedAction":"action for organizers","rootCause":"why this happened"}
@@ -121,7 +115,7 @@ function getMockResponse(
   }
 
   // User wants to report a specific problem
-  if (msg.includes('i have a problem') || msg.includes('report') || msg.includes('issue') || msg.includes('problem')) {
+  if (msg === 'i have a problem' || msg === '🚨 i have a problem') {
     return { response: "Of course — what problem are you facing?", quickReplies: ['WiFi issue', 'Food issue', 'Power/charging', 'Venue issue', 'Other'] };
   }
 
@@ -139,7 +133,7 @@ function getMockResponse(
   if ((buf.includes('wifi') || buf.includes('internet')) && (msg.includes('hall') || msg.includes('area') || msg.includes('registration') || msg.includes('lobby'))) {
     const location = msg.includes('hall a') ? 'Hall A' : msg.includes('hall b') ? 'Hall B' : msg.includes('hall c') ? 'Hall C' : 'Registration Area';
     return {
-      response: `Got it — I've flagged the Wi-Fi issue in ${location} with the organizers right away! 🚀`,
+      response: `Thank you for your feedback`,
       quickReplies: ['Yes, another issue', 'No, all good!'],
       issueData: {
         title: `Wi-Fi Connectivity Issue in ${location}`,
@@ -159,7 +153,7 @@ function getMockResponse(
   if (msg.includes('food') || msg.includes('eat') || msg.includes('drink') || msg.includes('snack') || msg.includes('coffee')) {
     if (buf.includes('running out') || buf.includes('no food') || buf.includes('empty')) {
       return {
-        response: "Noted — I've flagged the food shortage with the organizing team immediately! 🚀",
+        response: "Thank you for your feedback",
         quickReplies: ['Yes, another issue', 'No, all good!'],
         issueData: {
           title: 'Food/Refreshment Running Out',
@@ -180,7 +174,7 @@ function getMockResponse(
   // Power/charging
   if (msg.includes('power') || msg.includes('charging') || msg.includes('outlet') || msg.includes('plug') || msg.includes('electricity')) {
     return {
-      response: "Got it — I've flagged the power issue with the team! 🚀",
+      response: "Thank you for your feedback",
       quickReplies: ['Yes, another issue', 'No, all good!'],
       issueData: {
         title: 'Power/Charging Issue',

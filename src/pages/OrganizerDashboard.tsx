@@ -14,10 +14,11 @@ import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
   LinearScale, BarElement, LineElement, PointElement, Filler
 } from 'chart.js';
-import { Doughnut, Line } from 'react-chartjs-2';
+import { Doughnut, Pie, Line } from 'react-chartjs-2';
 import { subscribeToIssues, subscribeToAlerts, updateIssueStatus, getDashboardStats, seedDemoData } from '../services/issueService';
+import { subscribeToFeedbacks } from '../services/feedbackService';
 import { createEvent, subscribeToEvents, deleteEvent, restoreEvent, permanentlyDeleteEvent, emptyTrash, subscribeToTrash, type TrashedEvent } from '../services/eventService';
-import type { Issue, Alert, DashboardStats, Priority } from '../types';
+import type { Issue, Alert, DashboardStats, Priority, Feedback } from '../types';
 import type { Event } from '../types';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, type User } from 'firebase/auth';
@@ -898,6 +899,7 @@ export default function OrganizerDashboard() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [allIssues, setAllIssues] = useState<Issue[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     liveParticipants: 0, totalConversations: 0, openIssues: 0,
@@ -933,7 +935,8 @@ export default function OrganizerDashboard() {
     const unsub2 = subscribeToAlerts(setAlerts);
     const unsub3 = subscribeToEvents(setEvents);
     const unsub4 = subscribeToTrash(setTrash);
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+    const unsub5 = subscribeToFeedbacks(setFeedbacks);
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
 
   }, []);
 
@@ -1527,8 +1530,9 @@ export default function OrganizerDashboard() {
 
           {/* ── Issues Page ── */}
           {activePage === 'issues' && (
-            <div className="card">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
+            <>
+              <div className="card">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-lg">All Issues</h3>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   {/* Event filter */}
@@ -1623,6 +1627,91 @@ export default function OrganizerDashboard() {
                 </table>
               </div>
             </div>
+
+            {/* Direct Form Feedback Section */}
+            <div className="card mt-6">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-lg mb-6 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-brand-500" />
+                  Direct Form Feedback
+                </h3>
+
+                {feedbacks.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-6">No direct feedback received yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Graph */}
+                    <div className="lg:col-span-1 border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/30">
+                      <h4 className="font-semibold text-sm text-center mb-4 text-gray-700 dark:text-gray-300">Sentiment Overview</h4>
+                      <div className="h-48 relative">
+                        <Pie
+                          data={{
+                            labels: ['Positive (4-5★)', 'Neutral (3★)', 'Negative (1-2★)'],
+                            datasets: [{
+                              data: [
+                                feedbacks.filter(f => f.sentiment === 'positive').length,
+                                feedbacks.filter(f => f.sentiment === 'neutral').length,
+                                feedbacks.filter(f => f.sentiment === 'negative').length
+                              ],
+                              backgroundColor: ['#10b981', '#6366f1', '#ef4444'],
+                              borderWidth: 0,
+                            }]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Table (Hide if 100+) */}
+                    <div className="lg:col-span-2">
+                      {feedbacks.length >= 100 ? (
+                        <div className="h-full flex flex-col items-center justify-center border border-dashed border-brand-200 dark:border-brand-800 rounded-xl bg-brand-50/50 dark:bg-brand-900/10 p-6">
+                          <PackageOpen className="w-10 h-10 text-brand-400 mb-3 opacity-50" />
+                          <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">100+ Feedback Limit Reached</p>
+                          <p className="text-xs text-gray-500 text-center mt-1">
+                            Individual feedback records are hidden. We are calculating and displaying overall sentiment in the graph.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800 h-[300px] overflow-y-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0">
+                              <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <th className="px-4 py-3 font-semibold">Participant</th>
+                                <th className="px-4 py-3 font-semibold">Rating</th>
+                                <th className="px-4 py-3 font-semibold">Experience</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              {feedbacks.map(fb => (
+                                <tr key={fb.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                  <td className="px-4 py-3 align-top">
+                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{fb.participantName}</p>
+                                    <p className="text-xs text-gray-400">{fb.location}</p>
+                                  </td>
+                                  <td className="px-4 py-3 align-top">
+                                    <div className="flex items-center gap-1">
+                                      <Star className={`w-3.5 h-3.5 ${fb.overallRating >= 4 ? 'text-green-500' : fb.overallRating === 3 ? 'text-indigo-500' : 'text-red-500'} fill-current`} />
+                                      <span className="font-bold text-gray-700 dark:text-gray-200">{fb.overallRating}/5</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                    <p className="line-clamp-2">{fb.overallExperience || 'No comments provided'}</p>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* ── Analytics ── */}

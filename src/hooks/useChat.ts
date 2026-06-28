@@ -52,7 +52,7 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
         : "👋 Hi there! I'm **EventMind AI**, your event assistant.\n\nCould I know your name before we begin?";
 
       const quickReplies = isReturning
-        ? ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion']
+        ? ['🚨 I have a problem']
         : undefined;
 
       if (isReturning) {
@@ -165,7 +165,7 @@ export function useChat(eventId?: string, externalSessionId?: string, prefilledN
         role: 'ai',
         content: `Nice to meet you, **${cleanName}**! 👋\n\nHow's your experience at the event going so far?`,
         timestamp: new Date(),
-        quickReplies: ['🚨 I have a problem', '😊 Going great!', '💡 A suggestion'],
+        quickReplies: ['🚨 I have a problem'],
       };
 
       setState(prev => ({
