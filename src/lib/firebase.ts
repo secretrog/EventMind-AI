@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
@@ -23,7 +23,7 @@ export const isFirebaseConfigured = () => {
 
 if (isFirebaseConfigured()) {
   try {
-    app = initializeApp(firebaseConfig);
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getFirestore(app);
     auth = getAuth(app);
   } catch (e) {
